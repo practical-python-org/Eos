@@ -9,7 +9,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from .._checks import is_master_guild, is_moderator
+from src.bot.cogs import BaseCog
+from src.bot.cogs._checks import is_master_guild, is_moderator
 
 logger = logging.getLogger(__name__)
 
@@ -39,13 +40,15 @@ def logging_is_activated(request):
     return True
 
 
-class AdminPurge(commands.Cog):
+class AdminPurge(BaseCog):
     """
     We are limited to 100 messages per command by Discord API
     TODO: This command should be hidden from non-staff users.
     """
 
     def __init__(self, bot):
+        super().__init__(logger)
+
         self.bot = bot
         self.log_channel_req = self.bot.api.get_one_log_setting("3")  # chat_log
 

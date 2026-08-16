@@ -6,15 +6,18 @@ import logging
 
 from discord.ext import commands
 
+from src.bot.cogs import BaseCog
+
 logger = logging.getLogger(__name__)
 
 
-class GeneralSarcasticGoogle(commands.Cog):
+class GeneralSarcasticGoogle(BaseCog):
     """
     # Creates a link to the Let me google that for you site.
     """
 
     def __init__(self, bot):
+        super().__init__(logger)
         self.bot = bot
 
     @commands.hybrid_command(name="google")

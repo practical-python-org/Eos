@@ -7,6 +7,8 @@ import discord
 import discord.errors
 from discord.ext import commands
 
+from src.bot.cogs import BaseCog
+
 logger = logging.getLogger(__name__)
 DRAIN_SECONDS_PER_TOKEN = 60 * 20  # 1 token evaporated every 20 minutes
 WARN_THRESHOLD = 3
@@ -55,7 +57,7 @@ def embed_spammer_quarantine(spammer, message_to_report=None, file_url=None):
     return embed
 
 
-class ModerationSpamMessages(commands.Cog):
+class ModerationSpamMessages(BaseCog):
     """
     A cog for detecting and moderating spam messages in Discord channels.
 
@@ -72,6 +74,9 @@ class ModerationSpamMessages(commands.Cog):
         Args:
             bot (commands.Bot): The bot instance to which this cog is added.
         """
+
+        super().__init__(logger)
+
         self.bot = bot
         self.records = {}
         self.warn_message = "Hello there!"

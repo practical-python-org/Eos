@@ -9,6 +9,8 @@ import os
 import discord
 from discord.ext import commands
 
+from src.bot.cogs import BaseCog
+
 logger = logging.getLogger(__name__)
 
 
@@ -38,12 +40,14 @@ def embed_role_remove(some_member, member_who_did_action, role_obj):
     return embed
 
 
-class LoggingRoles(commands.Cog):
+class LoggingRoles(BaseCog):
     """
     Simple listener to on_member_update
     """
 
     def __init__(self, bot):
+        super().__init__(logger)
+
         self.bot = bot
         self.mod_log = self.bot.api.get_one_log_setting("5")  # mod_log
 

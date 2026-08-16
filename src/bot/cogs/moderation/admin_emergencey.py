@@ -4,7 +4,8 @@ import logging
 import discord
 from discord.ext import commands
 
-from .._checks import is_admin, is_master_guild
+from src.bot.cogs import BaseCog
+from src.bot.cogs._checks import is_admin, is_master_guild
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +23,10 @@ def embed_info(message):
     return embed
 
 
-class AdminEmergencey(commands.Cog, command_attrs=dict(hidden=True)):
+class AdminEmergencey(BaseCog, command_attrs=dict(hidden=True)):
     def __init__(self, bot):
+        super().__init__(logger)
+
         self.bot = bot
 
     @is_master_guild()

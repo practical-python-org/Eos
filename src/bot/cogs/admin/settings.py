@@ -4,7 +4,8 @@ import logging
 import discord
 from discord.ext import commands
 
-from .._checks import is_admin, is_master_guild
+from src.bot.cogs import BaseCog
+from src.bot.cogs._checks import is_admin, is_master_guild
 
 logger = logging.getLogger(__name__)
 
@@ -18,12 +19,14 @@ def sanitize_string(input_string):
     return "".join(char for char in input_string if ord(char) < 128)
 
 
-class Settings(commands.Cog):
+class Settings(BaseCog):
     """
     Settings Cog for managing various settings of the bot.
     """
 
     def __init__(self, bot: commands.Bot) -> None:
+        super().__init__(logger)
+
         self.bot = bot
 
     @is_master_guild()

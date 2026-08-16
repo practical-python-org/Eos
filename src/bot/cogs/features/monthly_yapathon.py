@@ -6,8 +6,10 @@ import datetime
 import logging
 import os
 
-from discord.ext import commands, tasks
+from discord.ext import tasks
 from discord.utils import get
+
+from src.bot.cogs import BaseCog
 
 logger = logging.getLogger(__name__)
 
@@ -17,12 +19,14 @@ TIME = datetime.time(hour=0, minute=0, second=0, tzinfo=datetime.timezone.utc)
 DATE = 1
 
 
-class MonthlyYapathon(commands.Cog):
+class MonthlyYapathon(BaseCog):
     """
     This cog deals with all the stuff of monthly yapathon.
     """
 
     def __init__(self, bot):
+        super().__init__(logger)
+
         self.bot = bot
         self.yapper_role_id = self.bot.api.get_one_role("8")[0]["roles"][2]
         self.announcement_channel_id = self.bot.api.get_one_setting("5")[0]["setting"][
@@ -30,7 +34,9 @@ class MonthlyYapathon(commands.Cog):
         ]
         self.appoint_monthly_yapper.start()
 
-    def cog_unload(self):
+    async def cog_unload(self):
+        await super().cog_unload()
+
         self.appoint_monthly_yapper.cancel()
 
     @tasks.loop(time=TIME)

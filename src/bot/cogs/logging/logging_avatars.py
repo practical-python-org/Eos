@@ -9,6 +9,8 @@ import logging
 import discord
 from discord.ext import commands
 
+from src.bot.cogs import BaseCog
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,12 +29,14 @@ def embed_avatar(before, after):
     return embed
 
 
-class LoggingAvatars(commands.Cog):
+class LoggingAvatars(BaseCog):
     """
     Simple listener to on_user_update
     """
 
     def __init__(self, bot):
+        super().__init__(logger)
+
         self.bot = bot
         self.user_log = self.bot.api.get_one_log_setting("4")  # User_log
 

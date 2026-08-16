@@ -9,6 +9,8 @@ import os
 import discord
 from discord.ext import commands
 
+from src.bot.cogs import BaseCog
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,13 +28,15 @@ def embed_kick(some_member, audit_log_entry):
     return embed
 
 
-class LoggingKicks(commands.Cog):
+class LoggingKicks(BaseCog):
     """
     Simple listener to on_member_remove
     then checks the audit log for exact details
     """
 
     def __init__(self, bot):
+        super().__init__(logger)
+
         self.bot = bot
         self.verification_role = self.bot.api.get_one_role("6")[0]["roles"][
             2

@@ -7,15 +7,19 @@ import logging
 import aiohttp
 from discord.ext import commands
 
+from src.bot.cogs import BaseCog
+
 logger = logging.getLogger(__name__)
 
 
-class GeneralCatFact(commands.Cog):
+class GeneralCatFact(BaseCog):
     """
     # Hits the catfact API and returns the response.
     """
 
     def __init__(self, bot):
+        super().__init__(logger)
+
         self.bot = bot
 
     @commands.hybrid_command(name="catfact")

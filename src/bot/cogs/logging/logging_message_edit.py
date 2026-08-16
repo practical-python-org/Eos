@@ -9,6 +9,8 @@ import os
 import discord
 from discord.ext import commands
 
+from src.bot.cogs import BaseCog
+
 logger = logging.getLogger(__name__)
 
 
@@ -39,12 +41,14 @@ def embed_message_edit(
     return embed
 
 
-class LoggingMessageEdit(commands.Cog):
+class LoggingMessageEdit(BaseCog):
     """
     Simple listener to on_message_edit
     """
 
     def __init__(self, bot):
+        super().__init__(logger)
+
         self.bot = bot
         self.staff_channel = self.bot.api.get_one_setting("3")[0]["setting"][
             2

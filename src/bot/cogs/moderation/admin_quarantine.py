@@ -11,7 +11,8 @@ from discord import app_commands
 from discord.ext import commands
 from discord.utils import get
 
-from .._checks import is_master_guild, is_moderator
+from src.bot.cogs import BaseCog
+from src.bot.cogs._checks import is_master_guild, is_moderator
 
 logger = logging.getLogger(__name__)
 
@@ -62,12 +63,14 @@ def embed_quarantine(moderator, some_member, number_of_removed_messages):
     return embed
 
 
-class AdminQuarantine(commands.Cog):
+class AdminQuarantine(BaseCog):
     """
     Command to quarantine a user.
     """
 
     def __init__(self, bot):
+        super().__init__(logger)
+
         self.bot = bot
         self.naughty_role = self.bot.api.get_one_role("7")[0]["roles"][
             2

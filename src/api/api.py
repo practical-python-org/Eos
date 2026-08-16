@@ -1,16 +1,17 @@
 import logging
 import os
 
-from __logger__ import setup_logger
-from core.db_helper import DB
 from flask import Flask, jsonify
-from routes.healthchecks import health_checks
-from routes.logging import logs
-from routes.parameters import parameters
-from routes.points import points
-from routes.roles import role
-from routes.settings import settings
 from werkzeug.exceptions import HTTPException
+
+from src.api.__logger__ import setup_logger
+from src.api.core.db_helper import DB
+from src.api.routes.healthchecks import health_checks
+from src.api.routes.logging import logs
+from src.api.routes.parameters import parameters
+from src.api.routes.points import points
+from src.api.routes.roles import role
+from src.api.routes.settings import settings
 
 logger = logging.getLogger(__name__)
 setup_logger(

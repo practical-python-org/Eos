@@ -13,6 +13,8 @@ from time import sleep
 import discord
 from discord.ext import commands
 
+from src.bot.cogs import BaseCog
+
 logger = logging.getLogger(__name__)
 
 
@@ -106,13 +108,15 @@ class DropdownView(discord.ui.View):
         self.add_item(VerificationSelector(bot))
 
 
-class Verification(commands.Cog):
+class Verification(BaseCog):
     """
     This is the class that defines the actual slash command.
     It uses the view above to execute actual logic.
     """
 
     def __init__(self, bot):
+        super().__init__(logger)
+
         self.bot = bot  # Passed in from main.py
         self.join_log = self.bot.api.get_one_log_setting("4")[0]["logging"][2]
         self.verification_channel = self.bot.api.get_one_setting("1")[0]["setting"][2]

@@ -9,7 +9,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from .._checks import is_master_guild, is_moderator
+from src.bot.cogs import BaseCog
+from src.bot.cogs._checks import is_master_guild, is_moderator
 
 logger = logging.getLogger(__name__)
 
@@ -27,12 +28,14 @@ def embed_info(message):
     return embed
 
 
-class AdminMute(commands.Cog):
+class AdminMute(BaseCog):
     """
     Command to ban a user. Takes in a name, and a reason.
     """
 
     def __init__(self, bot):
+        super().__init__(logger)
+
         self.bot = bot
 
     @is_moderator()

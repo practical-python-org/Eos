@@ -9,10 +9,12 @@ from asyncio import sleep
 import discord
 from discord.ext import commands
 
+from src.bot.cogs import BaseCog
+
 logger = logging.getLogger(__name__)
 
 
-class LoggingVerification(commands.Cog):
+class LoggingVerification(BaseCog):
     """
     Handled with a role, and a message.
     the role limits the user to one channel, with a verify button.
@@ -20,6 +22,8 @@ class LoggingVerification(commands.Cog):
     """
 
     def __init__(self, bot):
+        super().__init__(logger)
+
         self.bot = bot
         self.verification_channel = self.bot.api.get_one_setting("1")[0]["setting"][2]
         self.verification_log = self.bot.api.get_one_log_setting("1")[0]["logging"][2]

@@ -2,13 +2,16 @@ import logging
 
 from discord.ext import commands
 
-from .._checks import is_admin, is_master_guild
+from src.bot.cogs import BaseCog
+from src.bot.cogs._checks import is_admin, is_master_guild
 
 logger = logging.getLogger(__name__)
 
 
-class CommandSync(commands.Cog):
+class CommandSync(BaseCog):
     def __init__(self, bot: commands.Bot) -> None:
+        super().__init__(logger)
+
         self.bot = bot
 
     @commands.command(name="sync")

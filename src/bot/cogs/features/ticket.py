@@ -8,15 +8,19 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from src.bot.cogs import BaseCog
+
 logger = logging.getLogger(__name__)
 
 
-class AddTicketButton(commands.Cog):
+class AddTicketButton(BaseCog):
     """
     This is the slash command that sends our UI element.
     """
 
     def __init__(self, bot):
+        super().__init__(logger)
+
         self.bot = bot
 
     @app_commands.command(description="Make a ticket and contact the Staff.")

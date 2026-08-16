@@ -5,6 +5,8 @@ import os
 import discord
 from discord.ext import commands
 
+from src.bot.cogs import BaseCog
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,8 +32,10 @@ def embed_hc(api, db, uptime, git_hash):
     return embed
 
 
-class Health(commands.Cog):
+class Health(BaseCog):
     def __init__(self, bot: commands.Bot) -> None:
+        super().__init__(logger)
+
         self.bot = bot
 
     @commands.hybrid_command()
