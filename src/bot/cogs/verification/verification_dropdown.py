@@ -83,7 +83,7 @@ class VerificationSelector(discord.ui.Select):
 
             except AttributeError as no_role_set:
                 await verification_log.send(
-                    f"{interaction.user.display_name} is trying to verify, but there is no"
+                    f"{interaction.user.display_name} is trying to verify, but there is no "
                     f"verification role set!"
                 )
                 logger.critical(no_role_set)
