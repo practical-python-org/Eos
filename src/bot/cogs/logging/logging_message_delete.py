@@ -72,9 +72,10 @@ class LoggingMessageDelete(commands.Cog):
             return
 
         if (
-            message.channel.id == int(self.verification_channel) and (
-                message.author.bot or
-                message.content == self.verification_command
+            message.channel.id == int(self.verification_channel)
+            and (
+                message.author.bot
+                or message.content == self.verification_command
             )
         ):
             logger.debug("Message from verification process was ignored.")

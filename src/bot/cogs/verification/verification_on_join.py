@@ -92,8 +92,8 @@ class LoggingVerification(commands.Cog):
 
         if message.channel.id == int(self.verification_channel):
             if (
-                not message.author.bot and
-                not (message.author.guild_permissions.administrator or message.author.guild_permissions.ban_member)
+                not message.author.bot
+                and not (message.author.guild_permissions.administrator or message.author.guild_permissions.ban_members)
             ):
                 if f"{os.getenv('PREFIX')}verify" == message.content:  # keep it exact
                     # user is doing it right, and the verification_dropdown is triggered
