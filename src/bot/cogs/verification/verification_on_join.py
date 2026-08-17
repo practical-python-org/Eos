@@ -87,13 +87,15 @@ class LoggingVerification(commands.Cog):
         Keep verification clean again
         """
         if message.author.guild.id != int(os.getenv("MASTER_GUILD")):
-            logger.warning("on_message in verification fired, but not in master guild. Ignoring event.")
+            logger.warning(
+                "on_message in verification fired, but not in master guild. Ignoring event."
+            )
             return
 
         if message.channel.id == int(self.verification_channel):
-            if (
-                not message.author.bot
-                and not (message.author.guild_permissions.administrator or message.author.guild_permissions.ban_members)
+            if not message.author.bot and not (
+                message.author.guild_permissions.administrator
+                or message.author.guild_permissions.ban_members
             ):
                 if f"{os.getenv('PREFIX')}verify" == message.content:  # keep it exact
                     # user is doing it right, and the verification_dropdown is triggered
@@ -113,7 +115,9 @@ class LoggingVerification(commands.Cog):
                     )
 
                     await sleep(8)
-                    await bot_message.delete()  # remove the message to correct people after 8? seconds
+                    await (
+                        bot_message.delete()
+                    )  # remove the message to correct people after 8? seconds
 
 
 async def setup(bot: commands.Bot) -> None:

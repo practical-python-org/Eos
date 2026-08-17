@@ -50,7 +50,7 @@ class LoggingMessageDelete(commands.Cog):
             2
         ]  # Staff Channel ID
         self.verification_channel = self.bot.api.get_one_setting("1")[0]["setting"][2]
-        self.verification_command = f"{os.getenv("PREFIX")}verify"
+        self.verification_command = f"{os.getenv('PREFIX')}verify"
         self.chat_log = self.bot.api.get_one_log_setting("3")  # chat_log
 
     @commands.Cog.listener()
@@ -71,12 +71,8 @@ class LoggingMessageDelete(commands.Cog):
             logger.debug("Message delete in staff channel was ignored.")
             return
 
-        if (
-            message.channel.id == int(self.verification_channel)
-            and (
-                message.author.bot
-                or message.content == self.verification_command
-            )
+        if message.channel.id == int(self.verification_channel) and (
+            message.author.bot or message.content == self.verification_command
         ):
             logger.debug("Message from verification process was ignored.")
             return

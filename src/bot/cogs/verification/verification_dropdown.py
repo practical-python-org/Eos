@@ -91,7 +91,9 @@ class VerificationSelector(discord.ui.Select):
                     "Someone is verifying, but there is no verification role set!"
                 )
         else:
-            response = await interaction.response.send_message("You are a robot? Nice try.")
+            response = await interaction.response.send_message(
+                "You are a robot? Nice try."
+            )
             await verification_log.send(
                 f"{interaction.user.display_name} admitted to being a robot, and was kicked."
             )
