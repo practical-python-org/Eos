@@ -81,34 +81,43 @@ class LoggingVerification(commands.Cog):
         #  Is being called even though it should not be.
         # await self.kick_if_not_verified(member, 3600, verification_log)
 
-    # @commands.Cog.listener()
-    # async def on_message(self, message):
-    #     """
-    #     Keep verification clean again
-    #     """
-    #     if message.author.guild.id != int(os.getenv("MASTER_GUILD")):
-    #         logger.warning("on_message in verification fired, but not in master guild. Ignoring event.")
-    #         return
-    #
-    #     if message.channel.id == int(self.verification_channel):
-    #         if not message.author.bot:
-    #             if f"{os.getenv('PREFIX')}verify" == message.content:  # keep it exact
-    #                 # user is doing it right, and the verification_dropdown is triggered
-    #                 logger.debug(f"{message.author.name} started verification.")
-    #                 await sleep(3)
-    #                 await message.delete()  # cleanup correct verification calls
-    #                 return
-    #             else:  # this covers any other message in the channel.
-    #                 await message.delete()  # delete the user's incorrect message
-    #                 bot_message = await message.channel.send(
-    #                     f"You need to use the **{os.getenv('PREFIX')}verify** command.")
-    #
-    #                 logs_channel = await self.bot.fetch_channel(self.verification_log)
-    #                 await logs_channel.send(
-    #                     f"{message.author} is failing at life in {self.bot.get_channel(self.verification_channel)}")
-    #
-    #                 await sleep(8)
-    #                 bot_message.delete()  # remove the message to correct people after 8? seconds
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        """
+        Keep verification clean again
+        """
+        if message.author.guild.id != int(os.getenv("MASTER_GUILD")):
+            logger.warning(
+                "on_message in verification fired, but not in master guild. Ignoring event."
+            )
+            return
+
+        if message.channel.id == int(self.verification_channel):
+            if not message.author.bot and not (
+                message.author.guild_permissions.administrator
+                or message.author.guild_permissions.ban_members
+            ):
+                if f"{os.getenv('PREFIX')}verify" == message.content:  # keep it exact
+                    # user is doing it right, and the verification_dropdown is triggered
+                    logger.debug(f"{message.author.name} started verification.")
+                    await sleep(3)
+                    await message.delete()  # cleanup correct verification calls
+                    return
+                else:  # this covers any other message in the channel.
+                    await message.delete()  # delete the user's incorrect message
+                    bot_message = await message.channel.send(
+                        f"You need to use the **{os.getenv('PREFIX')}verify** command."
+                    )
+
+                    logs_channel = await self.bot.fetch_channel(self.verification_log)
+                    await logs_channel.send(
+                        f"{message.author} is failing at life in {self.bot.get_channel(int(self.verification_channel)).mention}"
+                    )
+
+                    await sleep(8)
+                    await (
+                        bot_message.delete()
+                    )  # remove the message to correct people after 8? seconds
 
 
 async def setup(bot: commands.Bot) -> None:

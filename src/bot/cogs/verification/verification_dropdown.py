@@ -91,13 +91,15 @@ class VerificationSelector(discord.ui.Select):
                     "Someone is verifying, but there is no verification role set!"
                 )
         else:
-            msg = await interaction.response.send_message("You are a robot? Nice try.")
+            response = await interaction.response.send_message(
+                "You are a robot? Nice try."
+            )
             await verification_log.send(
-                f"{interaction.user.display_name} admitted to being a robot, and was kicked. "
+                f"{interaction.user.display_name} admitted to being a robot, and was kicked."
             )
             sleep(3)
+            await response.resource.delete()
             await interaction.user.kick(reason="User admitted to being a robot.")
-            await msg.delete()
 
 
 class DropdownView(discord.ui.View):
@@ -131,7 +133,7 @@ class Verification(commands.Cog):
             return
 
         else:
-            if self.verified_role not in [role.id for role in ctx.author.roles]:
+            if int(self.verified_role) not in [role.id for role in ctx.author.roles]:
                 logger.debug(f"{ctx.author.name} is attempting to verify")
                 await ctx.send(
                     "# ~ Verification ~ \n"
@@ -141,7 +143,9 @@ class Verification(commands.Cog):
                     delete_after=15.0,
                 )
             else:
-                await ctx.send("You are already verified. Go away.")
+                msg = await ctx.send("You are already verified. Go away.")
+                sleep(10)
+                await msg.delete()
 
 
 async def setup(bot: commands.Bot) -> None:
