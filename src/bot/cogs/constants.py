@@ -1,3 +1,17 @@
+from discord.app_commands import Choice
+
+
+WEBPAGE_CHOICES: tuple[Choice[str], ...] = (
+    Choice(name="Home", value=""),
+    Choice(name="Getting started", value="getting-started/"),
+    Choice(name="Resources", value="resources/"),
+    Choice(name="Projects", value="projects/"),
+    Choice(name="Rules", value="rules/"),
+    Choice(name="Code Adventure", value="code-adventure/"),
+    Choice(name="Learning path", value="resources/learning-path/"),
+    Choice(name="Codeblocks", value="rules/channels/#__tabbed_2_1"),
+)
+
 LATEX_COLORS = {
     "emerald": "Emerald",
     "violet": "Violet",
