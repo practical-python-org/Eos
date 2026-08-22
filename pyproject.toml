@@ -4,5 +4,6 @@ members = ["src/api", "src/bot"]
 [dependency-groups]
 dev = [
     "pre-commit>=4.6.0",
+    "pytest>=9.1.1",
     "ruff>=0.15.15",
 ]

@@ -30,4 +30,4 @@ ENV HOME="/api" \
     PATH="/api/.venv/bin:$PATH"
 
 EXPOSE ${FLASK_RUN_PORT}
-CMD ["sh", "-c", "exec gunicorn -w 2 --timeout 60 --graceful-timeout 30 --access-logfile - --error-logfile - -b 0.0.0.0:${FLASK_RUN_PORT} --chdir /api/src/api api:app"]
+CMD ["sh", "-c", "exec gunicorn -w 2 --timeout 60 --graceful-timeout 30 --access-logfile - --error-logfile - -b 0.0.0.0:${FLASK_RUN_PORT} --chdir /api/src/api 'api:create_app()'"]

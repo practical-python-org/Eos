@@ -60,7 +60,7 @@ class MakeATicket(discord.ui.View):
             interaction.channel
         )  # TODO: guild specific settings for a support channel
         staff = interaction.guild.get_role(
-            self.bot.api.get_one_role("3")[0]["roles"][2]
+            self.bot.api.get_one_role("3")["role"]["value"]
         )  # Staff
 
         ticket = await support.create_thread(

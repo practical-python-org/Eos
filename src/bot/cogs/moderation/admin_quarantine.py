@@ -69,11 +69,11 @@ class AdminQuarantine(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.naughty_role = self.bot.api.get_one_role("7")[0]["roles"][
-            2
+        self.naughty_role = self.bot.api.get_one_role("7")["role"][
+            "value"
         ]  # quarantine role ID
-        self.verified_role = self.bot.api.get_one_role("6")[0]["roles"][
-            2
+        self.verified_role = self.bot.api.get_one_role("6")["role"][
+            "value"
         ]  # Verification role ID
         self.mod_log = self.bot.api.get_one_log_setting("5")  # mod_log
 
@@ -106,7 +106,9 @@ class AdminQuarantine(commands.Cog):
             if not target.guild_permissions.administrator:
                 message_counter = 0
 
-                mod_log = await self.bot.fetch_channel(self.mod_log[0]["logging"][2])
+                mod_log = await self.bot.fetch_channel(
+                    self.mod_log["log_setting"]["value"]
+                )
                 verified_role = get(interaction.guild.roles, id=int(self.verified_role))
                 naughty_role = get(interaction.guild.roles, id=int(self.naughty_role))
 
@@ -172,7 +174,7 @@ class AdminQuarantine(commands.Cog):
             f"{interaction.user.name} used the release command on {target.name}"
         )
         if not target.bot:
-            mod_log = await self.bot.fetch_channel(self.mod_log[0]["logging"][2])
+            mod_log = await self.bot.fetch_channel(self.mod_log["log_setting"]["value"])
             verified_role = get(interaction.guild.roles, id=int(self.verified_role))
             naughty_role = get(interaction.guild.roles, id=int(self.naughty_role))
 

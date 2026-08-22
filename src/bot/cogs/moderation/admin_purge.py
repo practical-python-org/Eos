@@ -28,13 +28,13 @@ def embed_info(message):
 
 
 def api_request_is_ok(request):
-    if request[0]["status"] == "ok":
+    if request["status"] == "ok":
         return True
     return False
 
 
 def logging_is_activated(request):
-    if request[0]["logging"][2] == "0":
+    if request["log_setting"]["value"] == "0":
         return False
     return True
 
@@ -65,14 +65,14 @@ class AdminPurge(commands.Cog):
         if api_request_is_ok(self.log_channel_req):
             logger.info(
                 f"{interaction.user.name} is purging {amount} messages from "
-                f"the {self.log_channel_req[0]['logging'][1]}"
+                f"the {self.log_channel_req['log_setting']['name']}"
             )
             await interaction.response.defer()
             await interaction.channel.purge(limit=amount + 1)
 
             if logging_is_activated(self.log_channel_req):
                 logging_channel = await self.bot.fetch_channel(
-                    self.log_channel_req[0]["logging"][2]
+                    self.log_channel_req["log_setting"]["value"]
                 )
 
                 await logging_channel.send(

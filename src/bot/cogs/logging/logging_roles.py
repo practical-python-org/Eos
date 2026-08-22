@@ -66,14 +66,14 @@ class LoggingRoles(commands.Cog):
             responsible_member = audit_log.user
 
             changed_roles = []
-            if self.mod_log[0]["status"] == "ok":
-                if self.mod_log[0]["logging"][2] == "0":
+            if self.mod_log["status"] == "ok":
+                if self.mod_log["log_setting"]["value"] == "0":
                     logger.debug(
                         f"log was triggered, but logging is disabled. API: {self.mod_log}"
                     )
                     return
                 logs_channel = await self.bot.fetch_channel(
-                    self.mod_log[0]["logging"][2]
+                    self.mod_log["log_setting"]["value"]
                 )
 
                 if len(before.roles) > len(after.roles):

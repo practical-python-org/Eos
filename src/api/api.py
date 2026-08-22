@@ -13,40 +13,40 @@ from routes.settings import settings
 from werkzeug.exceptions import HTTPException
 
 logger = logging.getLogger(__name__)
-setup_logger(
-    level=int(os.getenv("API_LOG_LEVEL", "20")),
-    stream_logs=os.getenv("STREAM_LOGS", "true").lower(),
-)
+
+TROOPHY = {"1", "true", "yes", "on"}
 
 
-app = Flask(__name__)
-app.db = DB()
+def create_app(db=None) -> Flask:
+    """
+    Build the Flask app.
 
-# API routes
-app.register_blueprint(health_checks)
-app.register_blueprint(logs)
-app.register_blueprint(settings)
-app.register_blueprint(points)
-app.register_blueprint(role)
-app.register_blueprint(parameters)
+    :param db: data layer to use. Defaults to a real :class:`DB`;
+    """
+    setup_logger(
+        level=int(os.getenv("API_LOG_LEVEL", "20")),
+        stream_logs=os.getenv("STREAM_LOGS", "true").strip().lower() in TROOPHY,
+    )
 
+    app = Flask(__name__)
+    app.db = db if db is not None else DB()
 
-# Error handlers
-@app.errorhandler(Exception)
-def handle_exception(e):
-    # Generic Application Errors
-    app.logger.error(f"Unhandled exception: {str(e)}")
+    for blueprint in (health_checks, logs, settings, points, role, parameters):
+        app.register_blueprint(blueprint)
 
-    # Return a JSON response with a generic error message
-    return jsonify({"error": "An unexpected error occurred", "details": str(e)}), 500
+    @app.errorhandler(HTTPException)
+    def handle_http_exception(e):
+        logger.warning("HTTP exception: %s", e)
+        return jsonify(
+            {"status": "error", "message": e.description, "status_code": e.code}
+        ), e.code
 
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        # Anything unhandled. log dat exception.
+        logger.exception("Unhandled exception: %s", e)
+        return jsonify(
+            {"status": "error", "message": "An unexpected error occurred"}
+        ), 500
 
-@app.errorhandler(HTTPException)
-def handle_http_exception(e):
-    # HTTP Exception Errors
-    app.logger.error(f"HTTP exception: {str(e)}")
-
-    # Return a JSON response with details about the HTTP error
-    return jsonify(
-        {"error": str(e), "status_code": e.code, "description": e.description}
-    ), e.code
+    return app

@@ -16,7 +16,24 @@ setup_logger(
 )
 
 intents = discord.Intents.all()
-bot = commands.Bot(command_prefix=os.getenv("PREFIX"), intents=intents)
+
+
+class Eos(commands.Bot):
+    """
+    The bot
+    """
+
+    async def close(self) -> None:
+        """
+        Closes the shared API session before disconnecting from Discord.
+        """
+        logger.debug("Executing shutdown tasks...")
+        if getattr(self, "api", None) is not None:
+            await self.api.close()
+        await super().close()
+
+
+bot = Eos(command_prefix=os.getenv("PREFIX"), intents=intents)
 bot.boot_time = datetime.datetime.now()
 
 

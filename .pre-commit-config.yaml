@@ -13,7 +13,9 @@ repos:
     rev: 1.8.6
     hooks:
       - id: bandit
-        # args:  [--skip=B101]  # Skip "assert_used" warnings
+        # B101 (assert_used) is just how pytest asserts, so skip the test suite
+        # rather than disabling the check globally.
+        exclude: ^tests/
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.15

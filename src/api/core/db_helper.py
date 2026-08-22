@@ -1,22 +1,72 @@
 import logging
 import os
+from contextlib import contextmanager
 
 import psycopg
-from psycopg import OperationalError
+from psycopg import sql
+from psycopg.rows import dict_row
+from psycopg_pool import ConnectionPool
 
 logger = logging.getLogger(__name__)
 
+# serversettings, logging and roles are structurally identical
+# (id SERIAL, name VARCHAR, value VARCHAR), so they share one set of helpers.
+SETTINGS_TABLE = "serversettings"
+LOGGING_TABLE = "logging"
+ROLES_TABLE = "roles"
+_KEY_VALUE_TABLES = frozenset({SETTINGS_TABLE, LOGGING_TABLE, ROLES_TABLE})
+
+# Seconds to wait for a pooled connection before giving up.
+POOL_TIMEOUT = 5.0
+
+
+def _build_pool() -> ConnectionPool:
+    """
+    Build the connection pool.
+    Let's go swimming!
+    """
+    pool = ConnectionPool(
+        kwargs={
+            "dbname": os.getenv("POSTGRES_DB"),
+            "user": os.getenv("POSTGRES_USER"),
+            "password": os.getenv("POSTGRES_PASSWORD"),
+            "host": os.getenv("POSTGRES_HOST"),
+            "port": os.getenv("POSTGRES_PORT", "5432"),
+            "autocommit": True,
+            "row_factory": dict_row,
+        },
+        min_size=1,
+        max_size=4,
+        check=ConnectionPool.check_connection,
+        name="eos-api",
+        open=False,
+    )
+    pool.open()
+    return pool
+
 
 class DB:
-    def __init__(self):
-        self.conn = psycopg.connect(
-            dbname=os.getenv("POSTGRES_DB"),
-            user=os.getenv("POSTGRES_USER"),
-            password=os.getenv("POSTGRES_PASSWORD"),
-            host=os.getenv("POSTGRES_HOST"),
-        )
-        self.conn.autocommit = True
-        self.cursor = self.conn.cursor()
+    """
+    All database access for the API.
+    """
+
+    def __init__(self, pool: ConnectionPool | None = None):
+        self.pool = pool if pool is not None else _build_pool()
+
+    @contextmanager
+    def _cursor(self):
+        with self.pool.connection(timeout=POOL_TIMEOUT) as conn, conn.cursor() as cur:
+            yield cur
+
+    @staticmethod
+    def _error(action: str, err: Exception) -> dict:
+        logger.error("Error %s: %s", action, err)
+        return {"status": "error", "message": f"Database error while {action}"}
+
+    @staticmethod
+    def _check_table(table: str) -> None:
+        if table not in _KEY_VALUE_TABLES:
+            raise ValueError(f"Unknown table: {table}")
 
     ##################
     ## Healthchecks ##
@@ -24,370 +74,268 @@ class DB:
     def database_health_check(self):
         logger.debug("API attempting to contact DB for healthcheck...")
         try:
-            self.cursor.execute("SELECT 1")
-            result = self.cursor.fetchone()
-            if result:
-                return {"status": "ok"}
+            with self._cursor() as cur:
+                cur.execute("SELECT 1")
+                cur.fetchone()
+            return {"status": "ok"}
+        except (psycopg.Error, OSError) as err:
+            logger.critical("DB healthcheck failed: %s", err)
+            return {"status": "unhealthy", "message": "Database unreachable"}
 
-        except OperationalError as err:
-            logger.critical(f"DB Healthcheck - 500 - {err}")
-            self.conn.close()
-            return {"status": "unhealthy", "error": {err}}
-
-    ##################
-    ##   logging   ##
-    ##################
-    def get_log_setting(self, setting_id):
-        logger.debug("API attempting to contact DB for get_log_setting...")
+    ############################
+    ## Shared id/name/value  ##
+    ############################
+    def _get_row(self, table: str, row_id, key: str) -> dict:
+        self._check_table(table)
         try:
-            self.cursor.execute("SELECT * FROM logging where id = %s", (setting_id,))
-            result = self.cursor.fetchone()
-            return {"status": "ok", "logging": result}
-        except OperationalError as err:
-            logger.error(f"Error fetching logging: {err}")
-            return {"status": "error", "message": str(err)}
+            with self._cursor() as cur:
+                cur.execute(
+                    sql.SQL("SELECT id, name, value FROM {} WHERE id = %s").format(
+                        sql.Identifier(table)
+                    ),
+                    (row_id,),
+                )
+                row = cur.fetchone()
+        except psycopg.Error as err:
+            return self._error(f"fetching {table} row {row_id}", err)
+
+        if row is None:
+            return {
+                "status": "not_found",
+                "message": f"No {table} row with ID {row_id}",
+            }
+        return {"status": "ok", key: row}
+
+    def _get_rows(self, table: str, key: str) -> dict:
+        self._check_table(table)
+        try:
+            with self._cursor() as cur:
+                cur.execute(
+                    sql.SQL("SELECT id, name, value FROM {} ORDER BY id").format(
+                        sql.Identifier(table)
+                    )
+                )
+                rows = cur.fetchall()
+        except psycopg.Error as err:
+            return self._error(f"fetching {table}", err)
+
+        return {"status": "ok", key: rows}
+
+    def _update_row(self, table: str, row_id, value) -> dict:
+        self._check_table(table)
+        logger.debug("Updating %s row %s to %s", table, row_id, value)
+        try:
+            with self._cursor() as cur:
+                cur.execute(
+                    sql.SQL("UPDATE {} SET value = %s WHERE id = %s").format(
+                        sql.Identifier(table)
+                    ),
+                    (value, row_id),
+                )
+                updated = cur.rowcount
+        except psycopg.Error as err:
+            return self._error(f"updating {table} row {row_id}", err)
+
+        if not updated:
+            return {
+                "status": "not_found",
+                "message": f"No {table} row with ID {row_id}",
+            }
+        return {"status": "ok", "message": f"{table} row {row_id} updated successfully"}
+
+    ###############
+    ##  Logging  ##
+    ###############
+    def get_log_setting(self, log_id):
+        return self._get_row(LOGGING_TABLE, log_id, "log_setting")
 
     def get_log_settings(self):
-        logger.debug("API attempting to contact DB for get_log_settings...")
-        try:
-            self.cursor.execute("SELECT * FROM logging")  # case sensitive
-            result = self.cursor.fetchall()
-            return {"status": "ok", "logging": result}
-        except OperationalError as err:
-            logger.error(f"Error fetching logging: {err}")
-            return {"status": "error", "message": str(err)}
-
-    def get_logging(self):
-        logger.debug("API attempting to contact DB for get_logging...")
-        try:
-            self.cursor.execute("SELECT * FROM logging")
-            result = self.cursor.fetchall()
-            return {"status": "ok", "logging": result}
-        except OperationalError as err:
-            logger.error(f"Error fetching logging: {err}")
-            return {"status": "error", "message": str(err)}
+        return self._get_rows(LOGGING_TABLE, "log_settings")
 
     def update_logging(self, log_id, value):
-        logger.debug(
-            f"API attempting to contact DB for update_logging with log ID:{log_id} - Value:{value}"
-        )
-        try:
-            self.cursor.execute(
-                "UPDATE logging SET value = %s WHERE id = %s", (value, log_id)
-            )
-            return {"status": "ok", "message": "Log setting updated successfully"}
-        except OperationalError as err:
-            logger.error(f"Error updating log setting: {err}")
-            return {"status": "error", "message": str(err)}
+        return self._update_row(LOGGING_TABLE, log_id, value)
 
-    def add_log_setting(self, name, value):
-        logger.debug(
-            f"API attempting to contact DB for add_log with name:{name} - Value:{value}"
-        )
-        try:
-            self.cursor.execute(
-                "INSERT INTO logging (name, value) VALUES (%s, %s)", (name, value)
-            )
-            return {"status": "ok", "message": "New log setting added successfully"}
-        except OperationalError as err:
-            logger.error(f"Error adding new log setting: {err}")
-            return {"status": "error", "message": str(err)}
-
-    def delete_log_setting(self, log_id):
-        logger.debug(
-            f"API attempting to contact DB for delete_log with log_ID:{log_id}"
-        )
-        try:
-            self.cursor.execute("DELETE FROM logging WHERE id = %s", (log_id,))
-            return {
-                "status": "ok",
-                "message": f"Log with ID {log_id} deleted successfully",
-            }
-        except OperationalError as err:
-            logger.error(f"Error deleting log setting: {err}")
-            return {"status": "error", "message": str(err)}
-
-    ##################
-    ##   Settings   ##
-    ##################
+    ################
+    ##  Settings  ##
+    ################
     def get_setting(self, setting_id):
-        logger.debug("API attempting to contact DB for get_setting...")
-        try:
-            self.cursor.execute(
-                "SELECT * FROM serversettings where id = %s", (setting_id,)
-            )
-            result = self.cursor.fetchone()
-            return {"status": "ok", "setting": result}
-        except OperationalError as err:
-            logger.error(f"Error fetching logging: {err}")
-            return {"status": "error", "message": str(err)}
+        return self._get_row(SETTINGS_TABLE, setting_id, "setting")
 
     def get_settings(self):
-        logger.debug("API attempting to contact DB for get_setting...")
-        try:
-            self.cursor.execute("SELECT * FROM serversettings")  # case sensitive
-            result = self.cursor.fetchall()
-            return {"status": "ok", "setting": result}
-        except OperationalError as err:
-            logger.error(f"Error fetching setting: {err}")
-            return {"status": "error", "message": str(err)}
+        return self._get_rows(SETTINGS_TABLE, "settings")
 
     def update_setting(self, setting_id, value):
-        logger.debug(
-            f"API attempting to contact DB for update_setting with setting ID:{setting_id} - Value:{value}"
-        )
-        try:
-            self.cursor.execute(
-                "UPDATE serversettings SET value = %s WHERE id = %s",
-                (value, setting_id),
-            )
-            return {"status": "ok", "message": "Setting updated successfully"}
-        except OperationalError as err:
-            logger.error(f"Error updating setting: {err}")
-            return {"status": "error", "message": str(err)}
+        return self._update_row(SETTINGS_TABLE, setting_id, value)
 
-    def add_setting(self, name, value):
-        logger.debug(
-            f"API attempting to contact DB for add_setting with name:{name} - Value:{value}"
-        )
-        try:
-            self.cursor.execute(
-                "INSERT INTO serversettings (name, value) VALUES (%s, %s)",
-                (name, value),
-            )
-            return {"status": "ok", "message": "New setting added successfully"}
-        except OperationalError as err:
-            logger.error(f"Error adding new setting: {err}")
-            return {"status": "error", "message": str(err)}
-
-    def delete_setting(self, log_id):
-        logger.debug(
-            f"API attempting to contact DB for delete_setting with setting_ID:{log_id}"
-        )
-        try:
-            self.cursor.execute("DELETE FROM serversettings WHERE id = %s", (log_id,))
-            return {
-                "status": "ok",
-                "message": f"Setting with ID {log_id} deleted successfully",
-            }
-        except OperationalError as err:
-            logger.error(f"Error deleting setting: {err}")
-            return {"status": "error", "message": str(err)}
-
-    ##################
-    ##   roles   ##
-    ##################
+    #############
+    ##  Roles  ##
+    #############
     def get_role(self, role_id):
-        logger.debug("API attempting to contact DB for get_role...")
-        try:
-            self.cursor.execute("SELECT * FROM roles where id = %s", (role_id,))
-            result = self.cursor.fetchone()
-            return {"status": "ok", "roles": result}
-        except OperationalError as err:
-            logger.error(f"Error fetching roles: {err}")
-            return {"status": "error", "message": str(err)}
+        return self._get_row(ROLES_TABLE, role_id, "role")
 
     def get_roles(self):
-        logger.debug("API attempting to contact DB for get_roles...")
-        try:
-            self.cursor.execute("SELECT * FROM roles")
-            result = self.cursor.fetchall()
-            return {"status": "ok", "roles": result}
-        except OperationalError as err:
-            logger.error(f"Error fetching roles: {err}")
-            return {"status": "error", "message": str(err)}
+        return self._get_rows(ROLES_TABLE, "roles")
 
     def update_role(self, role_id, value):
-        logger.debug(
-            f"API attempting to contact DB for update_role with role ID:{role_id} - Value:{value}"
-        )
-        try:
-            self.cursor.execute(
-                "UPDATE roles SET value = %s WHERE id = %s", (value, role_id)
-            )
-            return {"status": "ok", "message": "role updated successfully"}
-        except OperationalError as err:
-            logger.error(f"Error updating role: {err}")
-            return {"status": "error", "message": str(err)}
+        return self._update_row(ROLES_TABLE, role_id, value)
 
-    def add_role(self, name, value):
-        logger.debug(
-            f"API attempting to contact DB for add_role with name:{name} - Value:{value}"
-        )
-        try:
-            self.cursor.execute(
-                "INSERT INTO roles (name, value) VALUES (%s, %s)", (name, value)
-            )
-            return {"status": "ok", "message": "New role added successfully"}
-        except OperationalError as err:
-            logger.error(f"Error adding new role: {err}")
-            return {"status": "error", "message": str(err)}
-
-    def delete_role(self, role_id):
-        logger.debug(
-            f"API attempting to contact DB for delete_role with role_ID:{role_id}"
-        )
-        try:
-            self.cursor.execute("DELETE FROM roles WHERE id = %s", (role_id,))
-            return {
-                "status": "ok",
-                "message": f"role with ID {role_id} deleted successfully",
-            }
-        except OperationalError as err:
-            logger.error(f"Error deleting role: {err}")
-            return {"status": "error", "message": str(err)}
-
-    ##################
-    ##    Points    ##
-    ##################
+    ##############
+    ##  Points  ##
+    ##############
     def get_points_for_user(self, user_id):
         try:
-            self.cursor.execute(
-                "SELECT points FROM users where discord_id =%s", (user_id,)
-            )
-            result = self.cursor.fetchone()
-            if result is not None:
-                return {"status": "ok", "points": result}
-            else:
-                return {"status": "error", "points": result}
-        except OperationalError as err:
-            logger.error(f"Error fetching points: {err}")
-            return {"status": "error", "message": str(err)}
+            with self._cursor() as cur:
+                cur.execute(
+                    "SELECT points FROM users WHERE discord_id = %s", (user_id,)
+                )
+                row = cur.fetchone()
+        except psycopg.Error as err:
+            return self._error(f"fetching points for user {user_id}", err)
+
+        if row is None:
+            return {"status": "not_found", "message": f"No user with ID {user_id}"}
+        return {"status": "ok", "points": row["points"]}
 
     def get_monthly_points_for_user(self, user_id):
         try:
-            self.cursor.execute(
-                "SELECT monthly_points FROM users WHERE discord_id = %s", (user_id,)
-            )
-            result = self.cursor.fetchone()
-            if result is not None:
-                return {"status": "ok", "monthly_points": result}
-            else:
-                return {"status": "error", "monthly_points": result}
-        except OperationalError as err:
-            logger.error(f"Error fetching monthly_points: {err}")
-            return {"status": "error", "message": str(err)}
+            with self._cursor() as cur:
+                cur.execute(
+                    "SELECT monthly_points FROM users WHERE discord_id = %s", (user_id,)
+                )
+                row = cur.fetchone()
+        except psycopg.Error as err:
+            return self._error(f"fetching monthly points for user {user_id}", err)
+
+        if row is None:
+            return {"status": "not_found", "message": f"No user with ID {user_id}"}
+        return {"status": "ok", "monthly_points": row["monthly_points"]}
 
     def update_points(self, user_id, value):
         try:
-            self.cursor.execute(
-                "UPDATE users SET points = points + %s, monthly_points = monthly_points + %s WHERE discord_id = %s",
-                (value, value, user_id),
-            )
-            self.conn.commit()
-            return {"status": "ok", "message": "points updated successfully"}
-        except OperationalError as err:
-            logger.error(f"Error updating points: {err}")
-            self.conn.rollback()
-            return {"status": "error", "message": str(err)}
+            with self._cursor() as cur:
+                cur.execute(
+                    "UPDATE users SET points = points + %s, "
+                    "monthly_points = monthly_points + %s WHERE discord_id = %s",
+                    (value, value, user_id),
+                )
+                updated = cur.rowcount
+        except psycopg.Error as err:
+            return self._error(f"updating points for user {user_id}", err)
+
+        if not updated:
+            return {"status": "not_found", "message": f"No user with ID {user_id}"}
+        return {"status": "ok", "message": "Points updated successfully"}
 
     def add_user_to_points(self, user_id):
         try:
-            self.cursor.execute(
-                "INSERT INTO users (discord_id, points, monthly_points) VALUES (%s, 0, 0) ON CONFLICT (discord_id) DO NOTHING;",
-                (user_id,),
-            )
-            # self.conn.commit()
-            return {
-                "status": "ok",
-                "message": "New user added to 'points' successfully",
-            }
-        except OperationalError as err:
-            logger.error(f"Error adding new user: {err}")
-            # self.conn.rollback()
-            return {"status": "error", "message": str(err)}
+            with self._cursor() as cur:
+                cur.execute(
+                    "INSERT INTO users (discord_id, points, monthly_points) "
+                    "VALUES (%s, 0, 0) ON CONFLICT (discord_id) DO NOTHING",
+                    (user_id,),
+                )
+        except psycopg.Error as err:
+            return self._error(f"adding user {user_id}", err)
+
+        return {"status": "ok", "message": f"User {user_id} added successfully"}
 
     def remove_user_from_points(self, user_id):
         try:
-            self.cursor.execute("DELETE FROM users WHERE discord_id = %s", (user_id,))
-            affected_rows = self.cursor.rowcount
-            if affected_rows > 0:
-                self.conn.commit()
-                return {
-                    "status": "ok",
-                    "message": f"User with ID: {user_id} deleted successfully",
-                }
-            else:
-                return {
-                    "status": "not_found",
-                    "message": f"No user found with ID: {user_id}",
-                }
-        except OperationalError as err:
-            logger.error(f"Error deleting user: {err}")
-            self.conn.rollback()
-            return {"status": "error", "message": str(err)}
+            with self._cursor() as cur:
+                cur.execute("DELETE FROM users WHERE discord_id = %s", (user_id,))
+                deleted = cur.rowcount
+        except psycopg.Error as err:
+            return self._error(f"deleting user {user_id}", err)
+
+        if not deleted:
+            return {"status": "not_found", "message": f"No user with ID {user_id}"}
+        return {"status": "ok", "message": f"User {user_id} deleted successfully"}
 
     def get_top_10(self):
         try:
-            self.cursor.execute(
-                "SELECT discord_id, points FROM users ORDER BY points DESC LIMIT 10"
-            )
-            result = self.cursor.fetchall()
-            return {"status": "ok", "message": result}
-        except OperationalError as err:
-            logger.error(f"Error getting top10: {err}")
-            self.conn.rollback()
-            return {"status": "error", "message": str(err)}
+            with self._cursor() as cur:
+                cur.execute(
+                    "SELECT discord_id, points FROM users ORDER BY points DESC LIMIT 10"
+                )
+                rows = cur.fetchall()
+        except psycopg.Error as err:
+            return self._error("fetching the points leaderboard", err)
 
-    def get_monthly_top_point_earner(self):
-        try:
-            self.cursor.execute(
-                "SELECT discord_id, monthly_points FROM users ORDER BY monthly_points DESC LIMIT 1"
-            )
-            result = self.cursor.fetchone()
-            return {"status": "ok", "message": result}
-        except OperationalError as err:
-            logger.error(f"Error getting monthly top: {err}")
-            self.conn.rollback()
-            return {"status": "error", "message": str(err)}
+        return {"status": "ok", "leaderboard": rows}
 
     def get_monthly_top_10(self):
         try:
-            self.cursor.execute(
-                "SELECT discord_id, monthly_points FROM users ORDER BY monthly_points DESC LIMIT 10"
-            )
-            result = self.cursor.fetchall()
-            return {"status": "ok", "message": result}
-        except OperationalError as err:
-            logger.error(f"Error getting monthly top: {err}")
-            self.conn.rollback()
-            return {"status": "error", "message": str(err)}
+            with self._cursor() as cur:
+                cur.execute(
+                    "SELECT discord_id, monthly_points FROM users "
+                    "ORDER BY monthly_points DESC LIMIT 10"
+                )
+                rows = cur.fetchall()
+        except psycopg.Error as err:
+            return self._error("fetching the monthly points leaderboard", err)
+
+        return {"status": "ok", "leaderboard": rows}
+
+    def get_monthly_top_point_earner(self):
+        try:
+            with self._cursor() as cur:
+                cur.execute(
+                    "SELECT discord_id, monthly_points FROM users "
+                    "ORDER BY monthly_points DESC LIMIT 1"
+                )
+                row = cur.fetchone()
+        except psycopg.Error as err:
+            return self._error("fetching the monthly top point earner", err)
+
+        if row is None:
+            return {"status": "not_found", "message": "No users with points recorded"}
+        return {"status": "ok", "top_earner": row}
 
     def reset_monthly_points(self):
         try:
-            self.cursor.execute("UPDATE users SET monthly_points = 0")
-            self.conn.commit()
-            return {"status": "ok", "message": "monthly_points successfully set to 0"}
-        except OperationalError as err:
-            logger.error(f"Error resetting monthly_points: {err}")
-            self.conn.rollback()
-            return {"status": "error", "message": str(err)}
+            with self._cursor() as cur:
+                cur.execute("UPDATE users SET monthly_points = 0")
+        except psycopg.Error as err:
+            return self._error("resetting monthly points", err)
 
-    ################
-    ## parameters ##
-    ################
+        return {"status": "ok", "message": "Monthly points reset successfully"}
+
+    ##################
+    ##  Parameters  ##
+    ##################
     def get_parameter(self, parameter_name):
         try:
-            self.cursor.execute(
-                "SELECT parameter_value FROM parameters WHERE parameter_name = %s",
-                (parameter_name,),
-            )
-            result = self.cursor.fetchone()
-            return {"status": "ok", "message": result}
-        except OperationalError as err:
-            logger.error(f"Error getting parameter: {err}")
-            self.conn.rollback()
-            return {"status": "error", "message": str(err)}
+            with self._cursor() as cur:
+                cur.execute(
+                    "SELECT parameter_value FROM parameters WHERE parameter_name = %s",
+                    (parameter_name,),
+                )
+                row = cur.fetchone()
+        except psycopg.Error as err:
+            return self._error(f"fetching parameter {parameter_name}", err)
+
+        if row is None:
+            return {
+                "status": "not_found",
+                "message": f"No parameter named {parameter_name}",
+            }
+        return {"status": "ok", "parameter": row["parameter_value"]}
 
     def set_parameter(self, parameter_name, parameter_value):
         try:
-            self.cursor.execute(
-                "UPDATE parameters SET parameter_value = %s WHERE parameter_name = %s",
-                (parameter_value, parameter_name),
-            )
-            self.conn.commit()
-            return {"status": "ok", "message": "parameter set successfully"}
-        except OperationalError as err:
-            logger.error(f"Error setting parameter : {err}")
-            self.conn.rollback()
-            return {"status": "error", "message": str(err)}
+            with self._cursor() as cur:
+                cur.execute(
+                    "UPDATE parameters SET parameter_value = %s "
+                    "WHERE parameter_name = %s",
+                    (parameter_value, parameter_name),
+                )
+                updated = cur.rowcount
+        except psycopg.Error as err:
+            return self._error(f"setting parameter {parameter_name}", err)
+
+        if not updated:
+            return {
+                "status": "not_found",
+                "message": f"No parameter named {parameter_name}",
+            }
+        return {"status": "ok", "message": f"Parameter {parameter_name} set"}

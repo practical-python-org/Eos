@@ -1,443 +1,507 @@
 {
-	"info": {
-		"_postman_id": "fa4768f2-d289-4f78-9ad4-e446b125a976",
-		"name": "eos",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "38158174"
-	},
-	"item": [
-		{
-			"name": "Healthchecks",
-			"item": [
-				{
-					"name": "GET Database HC",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{BASE_URL}}/hc_db",
-							"host": [
-								"{{BASE_URL}}"
-							],
-							"path": [
-								"hc_db"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "GET API HC",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{BASE_URL}}/hc_api",
-							"host": [
-								"{{BASE_URL}}"
-							],
-							"path": [
-								"hc_api"
-							]
-						}
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Settings",
-			"item": [
-				{
-					"name": "GET one setting",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{BASE_URL}}/settings/3",
-							"host": [
-								"{{BASE_URL}}"
-							],
-							"path": [
-								"settings",
-								"3"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "GET all settings",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{BASE_URL}}/settings",
-							"host": [
-								"{{BASE_URL}}"
-							],
-							"path": [
-								"settings"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "GET logging settings",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{BASE_URL}}/log_settings",
-							"host": [
-								"{{BASE_URL}}"
-							],
-							"path": [
-								"log_settings"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "ADD setting",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\"name\" : \"flag5\", \"value\": 1}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{BASE_URL}}/settings",
-							"host": [
-								"{{BASE_URL}}"
-							],
-							"path": [
-								"settings"
-							],
-							"query": [
-								{
-									"key": "",
-									"value": "",
-									"disabled": true
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "UPDATE setting",
-					"request": {
-						"method": "PUT",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\"value\": 0}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{BASE_URL}}/settings/4",
-							"host": [
-								"{{BASE_URL}}"
-							],
-							"path": [
-								"settings",
-								"4"
-							],
-							"query": [
-								{
-									"key": "",
-									"value": null,
-									"disabled": true
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "DELETE setting",
-					"request": {
-						"method": "DELETE",
-						"header": [],
-						"url": {
-							"raw": "{{BASE_URL}}/settings/4",
-							"host": [
-								"{{BASE_URL}}"
-							],
-							"path": [
-								"settings",
-								"4"
-							],
-							"query": [
-								{
-									"key": "",
-									"value": null,
-									"disabled": true
-								}
-							]
-						}
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Roles",
-			"item": [
-				{
-					"name": "GET one role",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{BASE_URL}}/role/7",
-							"host": [
-								"{{BASE_URL}}"
-							],
-							"path": [
-								"role",
-								"7"
-							],
-							"query": [
-								{
-									"key": null,
-									"value": "",
-									"disabled": true
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "GET all roles",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{BASE_URL}}/role",
-							"host": [
-								"{{BASE_URL}}"
-							],
-							"path": [
-								"role"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "ADD role",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\"name\" : \"NewRole-OMG!\", \"value\": 1}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{BASE_URL}}/role",
-							"host": [
-								"{{BASE_URL}}"
-							],
-							"path": [
-								"role"
-							],
-							"query": [
-								{
-									"key": "",
-									"value": "",
-									"disabled": true
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "UPDATE role",
-					"request": {
-						"method": "PUT",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\"value\": 0}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{BASE_URL}}/role/4",
-							"host": [
-								"{{BASE_URL}}"
-							],
-							"path": [
-								"role",
-								"4"
-							],
-							"query": [
-								{
-									"key": "",
-									"value": null,
-									"disabled": true
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "DELETE role",
-					"request": {
-						"method": "DELETE",
-						"header": [],
-						"url": {
-							"raw": "{{BASE_URL}}/role/9",
-							"host": [
-								"{{BASE_URL}}"
-							],
-							"path": [
-								"role",
-								"9"
-							],
-							"query": [
-								{
-									"key": "",
-									"value": null,
-									"disabled": true
-								}
-							]
-						}
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Points",
-			"item": [
-				{
-					"name": "ADD User to points",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"url": {
-							"raw": "{{BASE_URL}}/points/{{XARLOS_USERID}}/add",
-							"host": [
-								"{{BASE_URL}}"
-							],
-							"path": [
-								"points",
-								"{{XARLOS_USERID}}",
-								"add"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "DELETE user from points",
-					"request": {
-						"method": "DELETE",
-						"header": [],
-						"url": {
-							"raw": "{{BASE_URL}}/points/{{XARLOS_USERID}}",
-							"host": [
-								"{{BASE_URL}}"
-							],
-							"path": [
-								"points",
-								"{{XARLOS_USERID}}"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "GET user points",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{BASE_URL}}/points/{{XARLOS_USERID}}",
-							"host": [
-								"{{BASE_URL}}"
-							],
-							"path": [
-								"points",
-								"{{XARLOS_USERID}}"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "GET Top 10",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{BASE_URL}}/points/top10",
-							"host": [
-								"{{BASE_URL}}"
-							],
-							"path": [
-								"points",
-								"top10"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "UPDATE points",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{BASE_URL}}/points/{{XARLOS_USERID}}/update",
-							"host": [
-								"{{BASE_URL}}"
-							],
-							"path": [
-								"points",
-								"{{XARLOS_USERID}}",
-								"update"
-							]
-						}
-					},
-					"response": []
-				}
-			]
-		}
-	]
+  "info": {
+    "_postman_id": "fa4768f2-d289-4f78-9ad4-e446b125a976",
+    "name": "eos",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "38158174"
+  },
+  "item": [
+    {
+      "name": "Healthchecks",
+      "item": [
+        {
+          "name": "GET API HC",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/hc_api",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "hc_api"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Database HC",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/hc_db",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "hc_db"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Settings",
+      "item": [
+        {
+          "name": "GET all settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/settings",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "settings"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET one setting",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/settings/3",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "settings",
+                "3"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "UPDATE setting",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"value\": \"0\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/settings/4",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "settings",
+                "4"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Logging",
+      "item": [
+        {
+          "name": "GET all log settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/logging",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "logging"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET one log setting",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/logging/3",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "logging",
+                "3"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "UPDATE log setting",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"value\": \"0\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/logging/3",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "logging",
+                "3"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Roles",
+      "item": [
+        {
+          "name": "GET all roles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/role",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "role"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET one role",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/role/7",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "role",
+                "7"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "UPDATE role",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"value\": \"0\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/role/4",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "role",
+                "4"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Points",
+      "item": [
+        {
+          "name": "ADD user",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/points/{{XARLOS_USERID}}/add",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "points",
+                "{{XARLOS_USERID}}",
+                "add"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET points",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/points/{{XARLOS_USERID}}",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "points",
+                "{{XARLOS_USERID}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "UPDATE points",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"value\": 10}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/points/{{XARLOS_USERID}}/update",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "points",
+                "{{XARLOS_USERID}}",
+                "update"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE user",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/points/{{XARLOS_USERID}}",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "points",
+                "{{XARLOS_USERID}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET top 10",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/points/top10",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "points",
+                "top10"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET monthly points",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/points/monthly/{{XARLOS_USERID}}",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "points",
+                "monthly",
+                "{{XARLOS_USERID}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET monthly top earner",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/points/monthly/top",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "points",
+                "monthly",
+                "top"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET monthly top 10",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/points/monthly/top10",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "points",
+                "monthly",
+                "top10"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "RESET monthly points",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/points/monthly/reset",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "points",
+                "monthly",
+                "reset"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Parameters",
+      "item": [
+        {
+          "name": "GET parameter",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/parameters/monthly_yapper",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "parameters",
+                "monthly_yapper"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "SET parameter",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"value\": \"0\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/parameters/monthly_yapper",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "parameters",
+                "monthly_yapper"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
 }

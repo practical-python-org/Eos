@@ -1,7 +1,9 @@
 import logging
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, request
 from flask import current_app as eos
+
+from ._responses import respond
 
 logger = logging.getLogger(__name__)
 
@@ -12,57 +14,33 @@ points = Blueprint("points", __name__)
 @points.route("/points/<user_id>", methods=["GET"])
 def get_points(user_id):
     """
-    Retrieve points from the database.
+    Grab a user's points.
     """
-    try:
-        result = eos.db.get_points_for_user(user_id)
-        if result["status"] == "ok":
-            return jsonify(result), 200
-        else:
-            logger.warning(f"Error getting points for user: {result}")
-            return jsonify(result), 400
-    except Exception as err:
-        logger.error(f"Error fetching points: {err}")
-        return jsonify({"status": "error", "message": str(err)}), 400
+    return respond(eos.db.get_points_for_user(user_id))
 
 
 @points.route("/points/monthly/<user_id>", methods=["GET"])
 def get_monthly_points(user_id):
     """
-    Retrieve monthly points of the user.
+    Grab a user's points for the current month.
     """
-    try:
-        result = eos.db.get_monthly_points_for_user(user_id)
-        if result["status"] == "ok":
-            return jsonify(result), 200
-        else:
-            logger.warning(f"Error getting monthly points for the user: {result}")
-            return jsonify(result), 400
-    except Exception as err:
-        logger.error(f"Error fetching monthly points: {err}")
-        return jsonify({"status": "error", "message": str(err)}), 400
+    return respond(eos.db.get_monthly_points_for_user(user_id))
 
 
 @points.route("/points/<user_id>/update", methods=["POST"])
 def update_points(user_id):
     """
-    Update points for a user.
+    Adjust a user's points by a signed amount.
     """
-    try:
-        data = request.json
-        if "value" not in data:
-            return jsonify(
-                {"status": "error", "message": "Missing required field: value"}
-            ), 400
+    data = request.get_json(silent=True) or {}
+    if "value" not in data:
+        return {"status": "error", "message": "Missing required field: value"}, 400
 
-        result = eos.db.update_points(user_id, data["value"])
-        return jsonify(result), 201
-    except ValueError as ve:
-        logger.error(f"Invalid input: {ve}")
-        return jsonify({"status": "error", "message": str(ve)}), 415
-    except Exception as err:
-        logger.error(f"Error updating points: {err}")
-        return jsonify({"status": "error", "message": str(err)}), 400
+    value = data["value"]
+    if isinstance(value, bool) or not isinstance(value, int):
+        return {"status": "error", "message": "Field 'value' must be an integer"}, 400
+
+    return respond(eos.db.update_points(user_id, value))
 
 
 @points.route("/points/<user_id>/add", methods=["POST"])
@@ -70,15 +48,7 @@ def add_user_to_points(user_id):
     """
     Add a new user to the points table.
     """
-    try:
-        result = eos.db.add_user_to_points(user_id)
-        return jsonify(result), 201
-    except ValueError as ve:
-        logger.error(f"Invalid input: {ve}")
-        return jsonify({"status": "error", "message": str(ve)}), 400
-    except Exception as err:
-        logger.error(f"Error adding user: {err}")
-        return jsonify({"status": "error", "message": str(err)}), 400
+    return respond(eos.db.add_user_to_points(user_id), w0o0o=201)
 
 
 @points.route("/points/<user_id>", methods=["DELETE"])
@@ -86,64 +56,36 @@ def remove_user_from_points(user_id):
     """
     Remove a user from the points table.
     """
-    try:
-        result = eos.db.remove_user_from_points(user_id)
-        return jsonify(result), 200
-    except ValueError as ve:
-        logger.error(f"Invalid input: {ve}")
-        return jsonify({"status": "error", "message": str(ve)}), 400
-    except Exception as err:
-        logger.error(f"Error removing user: {err}")
-        return jsonify({"status": "error", "message": str(err)}), 400
+    return respond(eos.db.remove_user_from_points(user_id))
 
 
 @points.route("/points/top10", methods=["GET"])
 def top10():
     """
-    Grabs the top 10 point earners from the DB
+    The top 10 all-time point earners.
     """
-    try:
-        result = eos.db.get_top_10()
-        return jsonify(result), 200
-    except Exception as err:
-        logger.error(f"Error getting top 10: {err}")
-        return jsonify({"status": "error", "message": str(err)}), 400
+    return respond(eos.db.get_top_10())
 
 
 @points.route("/points/monthly/top", methods=["GET"])
 def top_monthly():
     """
-    Grabs the top point earner of the month
+    The top point earner of the current month.
     """
-    try:
-        result = eos.db.get_monthly_top_point_earner()
-        return jsonify(result), 200
-    except Exception as err:
-        logger.error(f"Error getting monthly top point earner: {err}")
-        return jsonify({"status": "error", "message": str(err)}), 400
+    return respond(eos.db.get_monthly_top_point_earner())
 
 
 @points.route("/points/monthly/top10", methods=["GET"])
 def monthly_top10():
     """
-    Grabs the top 10 point earners of the month
+    The top 10 point earners of the current month.
     """
-    try:
-        result = eos.db.get_monthly_top_10()
-        return jsonify(result), 200
-    except Exception as err:
-        logger.error(f"Error getting monthly top 10: {err}")
-        return jsonify({"status": "error", "message": str(err)}), 400
+    return respond(eos.db.get_monthly_top_10())
 
 
 @points.route("/points/monthly/reset", methods=["DELETE"])
 def reset_monthly_points():
     """
-    Resets monthly points of all members
+    Reset every member's monthly points to zero.
     """
-    try:
-        result = eos.db.reset_monthly_points()
-        return jsonify(result), 200
-    except Exception as err:
-        logger.error(f"Error resetting monthly points: {err}")
-        return jsonify({"status": "error", "message": str(err)}), 400
+    return respond(eos.db.reset_monthly_points())

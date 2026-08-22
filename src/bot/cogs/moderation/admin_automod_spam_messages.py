@@ -251,13 +251,13 @@ class ModerationSpamMessages(commands.Cog):
         author_id = message.author.id
         try:
             naughty_role = await message.guild.fetch_role(
-                self.bot.api.get_one_role("7")[0]["roles"][2]
+                self.bot.api.get_one_role("7")["role"]["value"]
             )
             verified_role = await message.guild.fetch_role(
-                self.bot.api.get_one_role("6")[0]["roles"][2]
+                self.bot.api.get_one_role("6")["role"]["value"]
             )
 
-            quarantine_channel = self.bot.api.get_one_setting("2")[0]["setting"][2]
+            quarantine_channel = self.bot.api.get_one_setting("2")["setting"]["value"]
             quarantine_channel = await self.bot.fetch_channel(quarantine_channel)
             thirty_seconds = datetime.datetime.now().astimezone() + datetime.timedelta(
                 seconds=30

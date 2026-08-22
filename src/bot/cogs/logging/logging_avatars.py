@@ -48,14 +48,14 @@ class LoggingAvatars(commands.Cog):
         #     return
 
         if before.avatar != after.avatar:
-            if self.user_log[0]["status"] == "ok":
-                if self.user_log[0]["logging"][2] == "0":
+            if self.user_log["status"] == "ok":
+                if self.user_log["log_setting"]["value"] == "0":
                     logger.debug(
                         f"log was triggered, but logging is disabled. API: {self.user_log}"
                     )
                     return
                 logs_channel = await self.bot.fetch_channel(
-                    self.user_log[0]["logging"][2]
+                    self.user_log["log_setting"]["value"]
                 )
 
                 embed = embed_avatar(before, after)

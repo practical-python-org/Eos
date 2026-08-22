@@ -1,4 +1,4 @@
-.PHONY: start stop build pre-commit format
+.PHONY: start stop build pre-commit format test
 
 all: start
 
@@ -17,3 +17,6 @@ pre-commit:
 format:
 	uv run --dev ruff format .
 	uv run --dev ruff check . --fix
+
+test:
+	uv run --dev python -m pytest tests/

@@ -21,11 +21,15 @@ class LoggingVerification(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.verification_channel = self.bot.api.get_one_setting("1")[0]["setting"][2]
-        self.verification_log = self.bot.api.get_one_log_setting("1")[0]["logging"][2]
-        self.join_log = self.bot.api.get_one_log_setting("2")[0]["logging"][2]
-        self.verified_role = self.bot.api.get_one_role("6")[0]["roles"][2]
-        self.naughty_role = self.bot.api.get_one_role("7")[0]["roles"][2]
+        self.verification_channel = self.bot.api.get_one_setting("1")["setting"][
+            "value"
+        ]
+        self.verification_log = self.bot.api.get_one_log_setting("1")["log_setting"][
+            "value"
+        ]
+        self.join_log = self.bot.api.get_one_log_setting("2")["log_setting"]["value"]
+        self.verified_role = self.bot.api.get_one_role("6")["role"]["value"]
+        self.naughty_role = self.bot.api.get_one_role("7")["role"]["value"]
 
     async def log_unverified_join(self, member, logging_channel):
         await logging_channel.send(f"<@{member.id}> joined, but has not verified.")

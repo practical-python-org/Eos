@@ -24,9 +24,9 @@ class MonthlyYapathon(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.yapper_role_id = self.bot.api.get_one_role("8")[0]["roles"][2]
-        self.announcement_channel_id = self.bot.api.get_one_setting("5")[0]["setting"][
-            2
+        self.yapper_role_id = self.bot.api.get_one_role("8")["role"]["value"]
+        self.announcement_channel_id = self.bot.api.get_one_setting("5")["setting"][
+            "value"
         ]
         self.appoint_monthly_yapper.start()
 
@@ -44,6 +44,12 @@ class MonthlyYapathon(commands.Cog):
             monthly_top_point_earner = self.bot.api.monthly_top_point_earner()
             current_monthly_yapper = self.bot.api.get_parameter("monthly_yapper")
 
+            if current_monthly_yapper["status"] != "ok":
+                logger.error(
+                    f"Error reading the current monthly yapper: {current_monthly_yapper['message']}"
+                )
+                return
+
             if monthly_top_point_earner["status"] == "ok":
                 try:
                     guild = self.bot.get_guild(int(os.getenv("MASTER_GUILD")))
@@ -51,10 +57,11 @@ class MonthlyYapathon(commands.Cog):
                     yapper_role = get(guild.roles, id=int(self.yapper_role_id))
 
                     new_yapper = get(
-                        guild.members, id=int(monthly_top_point_earner["message"][0])
+                        guild.members,
+                        id=int(monthly_top_point_earner["top_earner"]["discord_id"]),
                     )
                     current_yapper = get(
-                        guild.members, id=int(current_monthly_yapper["message"][0])
+                        guild.members, id=int(current_monthly_yapper["parameter"])
                     )
                     # This condition will save this from crash when the current yapper has left the guild
                     if current_yapper is not None:

@@ -37,10 +37,10 @@ class Settings(commands.Cog):
         server_settings = self.bot.api.get_all_settings()
         log_settings = self.bot.api.get_all_log_settings()
 
-        if server_settings[0]["status"] != "ok":
+        if server_settings["status"] != "ok":
             await ctx.send(f"Failed to retrieve settings: {server_settings['message']}")
             return
-        if log_settings[0]["status"] != "ok":
+        if log_settings["status"] != "ok":
             await ctx.send(f"Failed to retrieve settings: {log_settings['message']}")
             return
 
@@ -51,13 +51,17 @@ class Settings(commands.Cog):
             timestamp=datetime.datetime.now(),
         )
 
-        for setting in server_settings[0]["setting"]:
-            value = f"<#{setting[2]}>" if setting[2] != "0" else "Off"
-            embed.add_field(name="", value=f"**{setting[1]}**:{value}", inline=False)
+        for setting in server_settings["settings"]:
+            value = f"<#{setting['value']}>" if setting["value"] != "0" else "Off"
+            embed.add_field(
+                name="", value=f"**{setting['name']}**:{value}", inline=False
+            )
 
-        for setting in log_settings[0]["logging"]:
-            value = f"<#{setting[2]}>" if setting[2] != "0" else "Off"
-            embed.add_field(name="", value=f"**{setting[1]}**:{value}", inline=False)
+        for setting in log_settings["log_settings"]:
+            value = f"<#{setting['value']}>" if setting["value"] != "0" else "Off"
+            embed.add_field(
+                name="", value=f"**{setting['name']}**:{value}", inline=False
+            )
 
         embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon)
 
@@ -76,9 +80,9 @@ class Settings(commands.Cog):
         server_settings = self.bot.api.get_all_settings()
 
         # Pull the names out of the returned JSON
-        logging_types = [item for item in channel_settings[0]["logging"]]
-        role_types = [role for role in role_settings[0]["roles"]]
-        setting_types = [setting for setting in server_settings[0]["setting"]]
+        logging_types = [item for item in channel_settings["log_settings"]]
+        role_types = [role for role in role_settings["roles"]]
+        setting_types = [setting for setting in server_settings["settings"]]
 
         # Get the names of the available channels and roles to map
         channels = [
@@ -97,15 +101,15 @@ class Settings(commands.Cog):
         menu = [
             # Views take context, bot, values of dropdowns, names of dropdowns
             (
-                (log[1], LoggingDropdownView(ctx, self.bot, channels, log))
+                (log["name"], LoggingDropdownView(ctx, self.bot, channels, log))
                 for log in logging_types
             ),
             (
-                (role[1], RoleDropdownView(ctx, self.bot, roles, role))
+                (role["name"], RoleDropdownView(ctx, self.bot, roles, role))
                 for role in role_types
             ),
             (
-                (setting[1], ServerDropdownView(ctx, self.bot, settings, setting))
+                (setting["name"], ServerDropdownView(ctx, self.bot, settings, setting))
                 for setting in setting_types
             ),
         ]
@@ -223,7 +227,7 @@ class LoggingDropdown(discord.ui.Select):
                 # Special formatting that uses : as a delimiter.
                 # Kind of abusing the "value" option with this.
                 # See the callback
-                value=f"{purpose[0]}:{purpose[1]}:0",
+                value=f"{purpose['id']}:{purpose['name']}:0",
             )
         ]
 
@@ -241,7 +245,7 @@ class LoggingDropdown(discord.ui.Select):
                     # Special formatting that uses : as a delimiter.
                     # Kind of abusing the "value" option with this.
                     # See the callback
-                    value=f"{purpose[0]}:{purpose[1]}:{guild_channel.id}",
+                    value=f"{purpose['id']}:{purpose['name']}:{guild_channel.id}",
                 )
             )
             logger.debug(f"SelectOption value: {purpose}:{guild_channel.id}")
@@ -277,12 +281,12 @@ class RoleDropdown(discord.ui.Select):
         self.dropdown_options = [
             discord.SelectOption(
                 label="Disconnect role.",
-                description=f"Disconnect the role from the {purpose[1]} position",
+                description=f"Disconnect the role from the {purpose['name']} position",
                 emoji="🔴",
                 # Special formatting that uses : as a delimiter.
                 # Kind of abusing the "value" option with this.
                 # See the callback
-                value=f"{purpose[0]}:{purpose[1]}:0",
+                value=f"{purpose['id']}:{purpose['name']}:0",
             )
         ]
 
@@ -298,7 +302,7 @@ class RoleDropdown(discord.ui.Select):
                     # Special formatting that uses : as a delimiter.
                     # Kind of abusing the "value" option with this.
                     # See the callback
-                    value=f"{purpose[0]}:{purpose[1]}:{role.id}",
+                    value=f"{purpose['id']}:{purpose['name']}:{role.id}",
                 )
             )
             logger.debug(f"SelectOption value: {purpose}:{role.id}")
@@ -339,7 +343,7 @@ class ServerDropdown(discord.ui.Select):
                 # Special formatting that uses : as a delimiter.
                 # Kind of abusing the "value" option with this.
                 # See the callback
-                value=f"{purpose[0]}:{purpose[1]}:0",
+                value=f"{purpose['id']}:{purpose['name']}:0",
             )
         ]
 
@@ -357,7 +361,7 @@ class ServerDropdown(discord.ui.Select):
                     # Special formatting that uses : as a delimiter.
                     # Kind of abusing the "value" option with this.
                     # See the callback
-                    value=f"{purpose[0]}:{purpose[1]}:{guild_channel.id}",
+                    value=f"{purpose['id']}:{purpose['name']}:{guild_channel.id}",
                 )
             )
             logger.debug(f"SelectOption value: {purpose}:{guild_channel.id}")
