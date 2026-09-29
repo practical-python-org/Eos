@@ -11,11 +11,17 @@ import discord
 from discord.ext import commands
 
 from src.bot.cogs import BaseCog
+from src.bot.cogs.moderation._message_removal import (
+    UNSAFE_FILENAME_CHARACTERS,
+    batch_posts,
+)
 
 logger = logging.getLogger(__name__)
 
 
-def embed_message_delete(some_member, some_message, some_moderator=None):
+def embed_message_delete(
+    some_member, some_message, some_moderator=None, unrecovered=()
+):
     """
     Embedding for user message deletion alerts.
     """
@@ -45,7 +51,10 @@ def embed_message_delete(some_member, some_message, some_moderator=None):
         embed.add_field(
             name="Attachments: ",
             value="\n".join(
-                attachment.filename for attachment in some_message.attachments
+                f"{attachment.filename} *(could not be recovered)*"
+                if attachment.filename in unrecovered
+                else attachment.filename
+                for attachment in some_message.attachments
             )[0:1020],
             inline=False,
         )
@@ -78,22 +87,31 @@ class LoggingMessageDelete(BaseCog):
         if self.chat_log["status"] != "ok":
             raise RuntimeError("Failed to fetch chat log setting from API.")
 
-    async def build_image_file(self, attachment: discord.Attachment) -> discord.File:
+    async def read_deleted_attachment(self, attachment: discord.Attachment) -> bytes:
         """
-        Return a File for the attachment, so it can be re-uploaded with the log embed.
-        """
-        data = await attachment.read()
-        return discord.File(BytesIO(data), filename=attachment.filename)
+        Download an attachment whose message was just deleted.
 
-    async def collect_image_files(self, message) -> list[discord.File]:
+        The direct CDN URL is purged immediately after a delete so we can try Discord's
+        media proxy first
+        """
+        try:
+            return await attachment.read(use_cached=True)
+        except discord.HTTPException as err:
+            logger.debug(
+                f"Proxy fetch failed for {attachment.filename}, trying CDN -> {err}"
+            )
+            return await attachment.read()
+
+    async def collect_image_files(self, message):
         """
         Re-download every image attachment on the deleted message.
 
-        Discord purges the CDN copy shortly after a delete, so anything we
-        fail to fetch is simply left out of the log rather than raising.
+        Returns (files, unrecovered): (file, size) pairs for the images we got,
+        and the filenames of images we could not fetch or re-upload.
         """
         size_limit = message.guild.filesize_limit
         files = []
+        unrecovered = []
         for attachment in message.attachments:
             if not (
                 attachment.content_type and attachment.content_type.startswith("image/")
@@ -104,18 +122,46 @@ class LoggingMessageDelete(BaseCog):
                     f"Image attachment {attachment.filename} is too large to re-upload "
                     f"({attachment.size} > {size_limit}). Skipping."
                 )
+                unrecovered.append(attachment.filename)
                 continue
             logger.debug(
                 f"Image attachment detected in deleted message, "
                 f"{attachment.filename}:{attachment.url}"
             )
             try:
-                files.append(await self.build_image_file(attachment))
+                data = await self.read_deleted_attachment(attachment)
             except discord.HTTPException as err:
                 logger.warning(
                     f"Could not fetch deleted attachment {attachment.filename} -> {err}"
                 )
-        return files
+                unrecovered.append(attachment.filename)
+                continue
+
+            # Prefixed so two images with the same name can't collide in one post.
+            safe_name = UNSAFE_FILENAME_CHARACTERS.sub("_", attachment.filename)
+            file = discord.File(BytesIO(data), filename=f"{len(files)}_{safe_name}")
+            files.append((file, len(data)))
+        return files, unrecovered
+
+    async def send_log(self, logs_channel, embed, image_files, upload_limit):
+        """
+        Send the log embed with the recovered images displayed inside embeds:
+        the first in the log embed itself, the rest in their own embeds.
+        """
+        items = [(embed, None, 0)]
+        for index, (file, size) in enumerate(image_files):
+            image_embed = embed if index == 0 else discord.Embed(color=embed.color)
+            image_embed.set_image(url=f"attachment://{file.filename}")
+            if index == 0:
+                items[0] = (embed, file, size)
+            else:
+                items.append((image_embed, file, size))
+
+        for batch in batch_posts(items, upload_limit):
+            await logs_channel.send(
+                embeds=[item_embed for item_embed, _, _ in batch],
+                files=[file for _, file, _ in batch if file],
+            )
 
     @commands.Cog.listener()
     async def on_message_delete(self, message) -> None:
@@ -142,30 +188,34 @@ class LoggingMessageDelete(BaseCog):
             logger.debug("Message from verification process was ignored.")
             return
 
-        audit_log = [entry async for entry in message.guild.audit_logs(limit=1)][0]
         if self.chat_log["status"] == "ok":
             if self.chat_log["log_setting"]["value"] == "0":
                 logger.debug(
                     f"log was triggered, but logging is disabled. API: {self.chat_log}"
                 )
                 return
+
+            image_files, unrecovered = await self.collect_image_files(message)
+
+            audit_log = [entry async for entry in message.guild.audit_logs(limit=1)][0]
             logs_channel = await self.bot.fetch_channel(
                 self.chat_log["log_setting"]["value"]
             )
 
-            image_files = await self.collect_image_files(message)
-
             if str(audit_log.action) == "AuditLogAction.message_delete":
                 # Then a moderator deleted a message.
-                embed = embed_message_delete(audit_log.target, message, audit_log.user)
-                await logs_channel.send(embed=embed, files=image_files)
-
+                embed = embed_message_delete(
+                    audit_log.target, message, audit_log.user, unrecovered
+                )
             else:
                 # Otherwise, the author deleted it.
-                username = message.author
-                await logs_channel.send(
-                    embed=embed_message_delete(username, message), files=image_files
+                embed = embed_message_delete(
+                    message.author, message, unrecovered=unrecovered
                 )
+
+            await self.send_log(
+                logs_channel, embed, image_files, message.guild.filesize_limit
+            )
         else:
             logger.critical(f"API error. API response not ok. -> {self.chat_log}")
 

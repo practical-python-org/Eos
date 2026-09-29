@@ -2,7 +2,6 @@
 Admin command for kicking a user.
 """
 
-import asyncio
 import datetime
 import logging
 
@@ -13,6 +12,11 @@ from discord.utils import get
 
 from src.bot.cogs import BaseCog
 from src.bot.cogs._checks import is_master_guild, is_moderator
+from src.bot.cogs.moderation._message_removal import (
+    MAX_MESSAGES_TO_REMOVE,
+    remove_and_log_messages,
+    send_to_mod_log,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,9 +47,9 @@ def embed_cant_do_that(message):
     return embed
 
 
-def embed_quarantine(moderator, some_member, number_of_removed_messages):
+def embed_quarantine(moderator, some_member):
     """
-    Embedding for user ban alerts.
+    Embedding for user quarantine alerts.
     """
     embed = discord.Embed(
         title="",
@@ -53,13 +57,6 @@ def embed_quarantine(moderator, some_member, number_of_removed_messages):
         color=discord.Color.red(),
         timestamp=datetime.datetime.now(datetime.timezone.utc),
     )
-
-    if number_of_removed_messages > 0:
-        embed.add_field(
-            name="Messages removed:",
-            value=f"{str(number_of_removed_messages)} messages.",
-        )
-
     return embed
 
 
@@ -72,13 +69,16 @@ class AdminQuarantine(BaseCog):
         super().__init__(logger)
 
         self.bot = bot
-        self.naughty_role = self.bot.api.get_one_role("7")["role"][
-            "value"
-        ]  # quarantine role ID
-        self.verified_role = self.bot.api.get_one_role("6")["role"][
-            "value"
-        ]  # Verification role ID
-        self.mod_log = self.bot.api.get_one_log_setting("5")  # mod_log
+
+    def find_role(self, guild, role_flag):
+        """
+        Look up a configured role in the guild. None if unset, or if it doesn't exist here.
+        """
+        response = self.bot.api.get_one_role(role_flag)
+        if response["status"] != "ok":
+            logger.critical(f"API error. API response not ok. -> {response}")
+            return None
+        return get(guild.roles, id=int(response["role"]["value"]))
 
     @app_commands.command()
     @is_moderator()
@@ -88,7 +88,7 @@ class AdminQuarantine(BaseCog):
         self,
         interaction: discord.Interaction,
         target: discord.Member,
-        messages_to_remove: int,
+        messages_to_remove: app_commands.Range[int, 0, MAX_MESSAGES_TO_REMOVE],
     ):
         """
         Quarantines the specified user. Removes their access from public channels.
@@ -98,7 +98,7 @@ class AdminQuarantine(BaseCog):
         target : discord.Member
             The member to quarantine.
         messages_to_remove : int
-            The number of messages to remove from this member.
+            How many messages to delete and log.
         """
 
         await interaction.response.defer()
@@ -107,45 +107,51 @@ class AdminQuarantine(BaseCog):
         )
         if not target.bot:
             if not target.guild_permissions.administrator:
-                message_counter = 0
-
-                mod_log = await self.bot.fetch_channel(
-                    self.mod_log["log_setting"]["value"]
-                )
-                verified_role = get(interaction.guild.roles, id=int(self.verified_role))
-                naughty_role = get(interaction.guild.roles, id=int(self.naughty_role))
-
-                try:
-                    await target.remove_roles(verified_role)
-                    await target.add_roles(naughty_role)
-                    await interaction.followup.send(
-                        f"{target.name} has been quarantined.", ephemeral=True
+                # Read on every use so changes made with /settings apply without a restart.
+                verified_role = self.find_role(interaction.guild, "6")
+                naughty_role = self.find_role(interaction.guild, "7")
+                missing = [
+                    name
+                    for name, role in (
+                        ("verified (role 6)", verified_role),
+                        ("quarantine (role 7)", naughty_role),
                     )
+                    if role is None
+                ]
 
-                except Exception as notification1:
-                    await interaction.followup.send(
-                        "There was an issue with the command.", ephemeral=True
+                if missing:
+                    logger.error(
+                        f"Quarantine failed: {', '.join(missing)} not found in {interaction.guild.name}."
                     )
-                    logger.critical(
-                        f"There was an error in the Quarantine command...\n{notification1}"
-                    )
-
-                    # remove messages, if that was specified.
                     await interaction.followup.send(
-                        content=f"Removing {messages_to_remove} messages by {target.name}...",
+                        embed=embed_cant_do_that(
+                            f"{target.name} was **not** quarantined: the {' and '.join(missing)}"
+                            " setting does not match a role in this server. Fix it with /settings."
+                        ),
                         ephemeral=True,
                     )
+                else:
+                    try:
+                        await target.remove_roles(verified_role)
+                        await target.add_roles(naughty_role)
+                        await interaction.followup.send(
+                            f"{target.name} has been quarantined.", ephemeral=True
+                        )
 
-                if messages_to_remove > 0:
-                    async for message in interaction.channel.history(limit=50):
-                        if messages_to_remove > message_counter:
-                            if message.author.name == target.name:
-                                await message.delete()
-                                message_counter += 1
-                                await asyncio.sleep(0.2)  # Avoiding rate limits.
+                    except Exception as notification1:
+                        await interaction.followup.send(
+                            "There was an issue with the command.", ephemeral=True
+                        )
+                        logger.critical(
+                            f"There was an error in the Quarantine command...\n{notification1}"
+                        )
 
-                await mod_log.send(
-                    embed=embed_quarantine(interaction.user, target, message_counter)
+                await remove_and_log_messages(
+                    self.bot,
+                    interaction.guild,
+                    target,
+                    messages_to_remove,
+                    embed_quarantine(interaction.user, target),
                 )
 
             else:
@@ -177,9 +183,18 @@ class AdminQuarantine(BaseCog):
             f"{interaction.user.name} used the release command on {target.name}"
         )
         if not target.bot:
-            mod_log = await self.bot.fetch_channel(self.mod_log["log_setting"]["value"])
-            verified_role = get(interaction.guild.roles, id=int(self.verified_role))
-            naughty_role = get(interaction.guild.roles, id=int(self.naughty_role))
+            verified_role = self.find_role(interaction.guild, "6")
+            naughty_role = self.find_role(interaction.guild, "7")
+            if verified_role is None or naughty_role is None:
+                await interaction.followup.send(
+                    embed=embed_cant_do_that(
+                        f"{target.name} was **not** released: the verified (role 6) or"
+                        " quarantine (role 7) setting does not match a role in this server."
+                        " Fix it with /settings."
+                    ),
+                    ephemeral=True,
+                )
+                return
 
             try:
                 await target.add_roles(verified_role)
@@ -188,10 +203,11 @@ class AdminQuarantine(BaseCog):
                     f"{interaction.user.mention} released {target.mention} from quarantine",
                     ephemeral=True,
                 )
-                await mod_log.send(
-                    embed=embed_info(
+                await send_to_mod_log(
+                    self.bot,
+                    embed_info(
                         f"{interaction.user.mention} released {target.mention} from quarantine"
-                    )
+                    ),
                 )
 
             except Exception as notification1:

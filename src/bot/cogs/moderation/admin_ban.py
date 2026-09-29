@@ -11,6 +11,10 @@ from discord.ext import commands
 
 from src.bot.cogs import BaseCog
 from src.bot.cogs._checks import is_master_guild, is_moderator
+from src.bot.cogs.moderation._message_removal import (
+    MAX_MESSAGES_TO_REMOVE,
+    remove_and_log_messages,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +47,11 @@ class AdminBan(BaseCog):
     @commands.has_permissions(ban_members=True)
     @app_commands.command()
     async def ban_member(
-        self, interaction: discord.Interaction, target: discord.Member, reason: str
+        self,
+        interaction: discord.Interaction,
+        target: discord.Member,
+        reason: str,
+        messages_to_remove: app_commands.Range[int, 0, MAX_MESSAGES_TO_REMOVE],
     ):
         """
         Moderation command to ban a member from the server.
@@ -54,6 +62,8 @@ class AdminBan(BaseCog):
             The member that needs to be banned.
         reason : str
             The reason for the ban.
+        messages_to_remove : int
+            How many messages to delete and log.
         """
         # Cant ban bots or admins.
         if not target.bot:
@@ -61,19 +71,36 @@ class AdminBan(BaseCog):
                 # Message the user, informing them of their fate
                 # TODO: Guild specific settings like the contact email
                 await interaction.response.defer()
-                await target.send(
-                    f"## You were banned by {interaction.user.name}.\n"
-                    f"**Reason:** {reason}\n"
-                    "\nIf you wish to appeal this ban,"
-                    " contact PracticalPythonStaff@gmail.com"
+                try:
+                    await target.send(
+                        f"## You were banned by {interaction.user.name}.\n"
+                        f"**Reason:** {reason}\n"
+                        "\nIf you wish to appeal this ban,"
+                        " contact PracticalPythonStaff@gmail.com"
+                    )
+                except discord.HTTPException:
+                    # Closed DMs must not stop the ban.
+                    logger.info("Could not DM %s about their ban.", target.name)
+                # Then we do dat ban
+                await target.ban(
+                    reason=f"{interaction.user.name} - {reason}",
+                    delete_message_seconds=0,
                 )
-                # Then we do the ban
-                await target.ban(reason=f"{interaction.user.name} - {reason}")
                 logger.info(
                     "{%s} banned {%s}. Reason: {%s}",
                     interaction.user.name,
                     target.name,
                     reason,
+                )
+                await remove_and_log_messages(
+                    self.bot,
+                    interaction.guild,
+                    target,
+                    messages_to_remove,
+                    embed_info(
+                        f"{interaction.user.mention} banned {target.mention}"
+                        f"\n**Reason:** {reason}"
+                    ),
                 )
                 # Then we publicly announce what happened.
                 await interaction.followup.send(
