@@ -29,6 +29,7 @@ def is_master_guild():
 
     return commands.check(predicate)
 
+
 def app_is_master_guild():
     async def predicate(interaction: discord.Interaction):
         master_guild_id = int(os.getenv("MASTER_GUILD"))
