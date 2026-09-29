@@ -7,10 +7,13 @@ import logging
 
 import discord
 from discord import app_commands
-from discord.ext import commands
 
 from src.bot.cogs import BaseCog
-from src.bot.cogs._checks import is_master_guild, is_moderator
+from src.bot.cogs._checks import (
+    app_is_master_guild,
+    app_requires_permissions,
+    respond_to_app_command_error,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -52,9 +55,9 @@ class AdminPurge(BaseCog):
         self.bot = bot
         self.log_channel_req = self.bot.api.get_one_log_setting("3")  # chat_log
 
-    @is_moderator()
-    @is_master_guild()
     @app_commands.command()
+    @app_is_master_guild()
+    @app_requires_permissions(ban_members=True)
     async def purge_messages(self, interaction: discord.Interaction, amount: int):
         """
         Purge a set of messages from the current channel.
@@ -93,13 +96,8 @@ class AdminPurge(BaseCog):
             logger.critical("API error while purging messages. Status is NOT ok.")
 
     @purge_messages.error
-    async def purge_error(self, ctx, error):
-        if isinstance(error, commands.CheckFailure):
-            await ctx.channel.send(
-                embed=embed_info(
-                    f"{ctx.author.mention}, you dont have permission to purge messages. The staff has been notified."
-                )
-            )
+    async def purge_error(self, interaction: discord.Interaction, error):
+        await respond_to_app_command_error(interaction, error, "purge messages")
 
 
 async def setup(bot) -> None:

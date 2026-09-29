@@ -8,11 +8,19 @@ when an option is selected, can verify or kick the user
 
 import datetime
 import logging
+from typing import Literal
 
 import discord
+from discord import app_commands
 from discord.ext import commands
 
 from src.bot.cogs import BaseCog
+from src.bot.cogs._checks import (
+    app_is_master_guild,
+    app_requires_permissions,
+    respond_to_app_command_error,
+)
+from src.bot.cogs.moderation._message_removal import send_to_mod_log
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +37,17 @@ def embed_verified_success(name, amount):
     )
 
     return embed
+
+
+VERIFICATION_PAUSED_MESSAGE = (
+    "Verification is temporarily paused. Please try again later."
+)
+VERIFICATION_PARAMETER = "verification_enabled"
+
+
+def verification_is_enabled(bot):
+    cog = bot.get_cog("Verification")
+    return cog is None or cog.enabled
 
 
 class VerificationSelector(discord.ui.Select):
@@ -74,6 +93,13 @@ class VerificationSelector(discord.ui.Select):
         verification_log = self.bot.get_channel(int(self.verification_log))
 
         if self.values[0] == "not_robot":
+            # The dropdown may have been opened before verification was paused.
+            if not verification_is_enabled(self.bot):
+                await interaction.response.send_message(
+                    VERIFICATION_PAUSED_MESSAGE, ephemeral=True
+                )
+                return
+
             you_win = interaction.guild.get_role(int(self.verified_role))
             join_log = await self.bot.fetch_channel(self.join_log)
             try:
@@ -126,6 +152,80 @@ class Verification(BaseCog):
             "value"
         ]
         self.verified_role = self.bot.api.get_one_role("6")["role"]["value"]
+        self.enabled = self.load_enabled()
+
+    def load_enabled(self):
+        """
+        Read the stored verification switch. If the API can't answer, stay
+        enabled so an outage doesn't lock every new member out.
+        """
+        response = self.bot.api.get_parameter(VERIFICATION_PARAMETER)
+        if response["status"] != "ok":
+            logger.critical(
+                f"Could not read {VERIFICATION_PARAMETER}; verification stays enabled."
+                f" API: {response}"
+            )
+            return True
+
+        enabled = response["parameter"] != "0"
+        if not enabled:
+            logger.warning("Verification is paused (restored from the database).")
+        return enabled
+
+    @app_commands.command()
+    @app_is_master_guild()
+    @app_requires_permissions(ban_members=True)
+    async def verification(
+        self,
+        interaction: discord.Interaction,
+        action: Literal["enable", "disable", "status"],
+    ):
+        """
+        Pause or resume verification, to stop new members joining the main server.
+
+        Parameters
+        ----------
+        action : str
+            disable pauses verification, enable resumes it, status shows the current state.
+        """
+        if action == "status":
+            state = "enabled" if self.enabled else "**paused**"
+            await interaction.response.send_message(
+                f"Verification is {state}.", ephemeral=True
+            )
+            return
+
+        enabled = action == "enable"
+        # Apply immediately, even if saving fails, so a raid can be stopped now.
+        self.enabled = enabled
+        response = self.bot.api.set_parameter(
+            VERIFICATION_PARAMETER, "1" if enabled else "0"
+        )
+        saved = response["status"] == "ok"
+
+        state = "enabled" if enabled else "paused"
+        logger.warning(f"{interaction.user.name} {state} verification.")
+        reply = f"Verification is now {'enabled' if enabled else '**paused**'}."
+        if not saved:
+            logger.critical(f"Could not save {VERIFICATION_PARAMETER}. API: {response}")
+            reply += (
+                "\n⚠️ The setting could not be saved, so it will reset to enabled"
+                " if the bot restarts."
+            )
+        await interaction.response.send_message(reply, ephemeral=True)
+
+        await send_to_mod_log(
+            self.bot,
+            discord.Embed(
+                description=f"{interaction.user.mention} {state} verification.",
+                color=discord.Color.green() if enabled else discord.Color.red(),
+                timestamp=datetime.datetime.now(datetime.timezone.utc),
+            ),
+        )
+
+    @verification.error
+    async def verification_error(self, interaction: discord.Interaction, error):
+        await respond_to_app_command_error(interaction, error, "change verification")
 
     @commands.command()
     async def verify(self, ctx):
@@ -138,6 +238,10 @@ class Verification(BaseCog):
                 f"{verification_channel.mention if verification_channel else 'verification'} channel."
             )
             return
+
+        elif not self.enabled:
+            logger.info(f"{ctx.author.name} tried to verify while it is paused.")
+            await ctx.send(VERIFICATION_PAUSED_MESSAGE, delete_after=15.0)
 
         else:
             if int(self.verified_role) not in [role.id for role in ctx.author.roles]:

@@ -7,10 +7,13 @@ import logging
 
 import discord
 from discord import app_commands
-from discord.ext import commands
 
 from src.bot.cogs import BaseCog
-from src.bot.cogs._checks import is_master_guild, is_moderator
+from src.bot.cogs._checks import (
+    app_is_master_guild,
+    app_requires_permissions,
+    respond_to_app_command_error,
+)
 from src.bot.cogs.moderation._message_removal import (
     MAX_MESSAGES_TO_REMOVE,
     remove_and_log_messages,
@@ -42,10 +45,9 @@ class AdminBan(BaseCog):
 
         self.bot = bot
 
-    @is_moderator()
-    @is_master_guild()
-    @commands.has_permissions(ban_members=True)
     @app_commands.command()
+    @app_is_master_guild()
+    @app_requires_permissions(ban_members=True)
     async def ban_member(
         self,
         interaction: discord.Interaction,
@@ -117,20 +119,8 @@ class AdminBan(BaseCog):
             await interaction.channel.send(embed=embed_info("You cant ban a bot."))
 
     @ban_member.error
-    async def ban_error(self, ctx, error):
-        if isinstance(error, commands.MemberNotFound):
-            await ctx.channel.send(
-                embed=embed_info(
-                    "User was not found, please check the name and use a mention."
-                )
-            )
-
-        if isinstance(error, commands.CheckFailure):
-            await ctx.channel.send(
-                embed=embed_info(
-                    f"{ctx.author.mention}, you dont have permission to ban users. The staff has been notified."
-                )
-            )
+    async def ban_error(self, interaction: discord.Interaction, error):
+        await respond_to_app_command_error(interaction, error, "ban users")
 
 
 async def setup(bot) -> None:

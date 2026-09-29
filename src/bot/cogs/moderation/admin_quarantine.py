@@ -7,11 +7,14 @@ import logging
 
 import discord
 from discord import app_commands
-from discord.ext import commands
 from discord.utils import get
 
 from src.bot.cogs import BaseCog
-from src.bot.cogs._checks import is_master_guild, is_moderator
+from src.bot.cogs._checks import (
+    app_is_master_guild,
+    app_requires_permissions,
+    respond_to_app_command_error,
+)
 from src.bot.cogs.moderation._message_removal import (
     MAX_MESSAGES_TO_REMOVE,
     remove_and_log_messages,
@@ -81,9 +84,8 @@ class AdminQuarantine(BaseCog):
         return get(guild.roles, id=int(response["role"]["value"]))
 
     @app_commands.command()
-    @is_moderator()
-    @is_master_guild()
-    @commands.has_permissions(moderate_members=True)
+    @app_is_master_guild()
+    @app_requires_permissions(ban_members=True, moderate_members=True)
     async def quarantine(
         self,
         interaction: discord.Interaction,
@@ -165,9 +167,8 @@ class AdminQuarantine(BaseCog):
             )
 
     @app_commands.command()
-    @commands.has_permissions(moderate_members=True)
-    @is_moderator()
-    @is_master_guild()
+    @app_is_master_guild()
+    @app_requires_permissions(ban_members=True, moderate_members=True)
     async def release(self, interaction: discord.Interaction, target: discord.Member):
         """
         Releases the specified member from quarantine. Gives back their access to public channels.
@@ -219,20 +220,14 @@ class AdminQuarantine(BaseCog):
                 )
 
     @quarantine.error
-    async def kick_error(self, ctx, error):
-        if isinstance(error, commands.MemberNotFound):
-            await ctx.channel.send(
-                embed=embed_info(
-                    "User was not found, please check the name and use a mention."
-                )
-            )
+    async def quarantine_error(self, interaction: discord.Interaction, error):
+        await respond_to_app_command_error(interaction, error, "quarantine users")
 
-        if isinstance(error, commands.CheckFailure):
-            await ctx.channel.send(
-                embed=embed_info(
-                    f"{ctx.author.mention}, you dont have permission to kick users. The staff has been notified."
-                )
-            )
+    @release.error
+    async def release_error(self, interaction: discord.Interaction, error):
+        await respond_to_app_command_error(
+            interaction, error, "release users from quarantine"
+        )
 
 
 async def setup(bot) -> None:

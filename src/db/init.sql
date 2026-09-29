@@ -67,4 +67,5 @@ CREATE TABLE IF NOT EXISTS parameters (
 );
 INSERT INTO parameters (parameter_name, parameter_value)
 VALUES
-    ('monthly_yapper', '0');
+    ('monthly_yapper', '0'),
+    ('verification_enabled', '1');
