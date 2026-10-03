@@ -51,12 +51,12 @@ async def _channel_messages_by(channel, member):
         return []
 
 
-async def find_recent_messages(guild, member, amount):
+async def find_recent_messages(guild, member, amount, since=None):
     """
     Return the member's `amount` newest messages across all readable channels,
-    newest first.
+    newest first. With `since`, every message sent at or after it is included too.
     """
-    if amount <= 0:
+    if amount <= 0 and since is None:
         return []
 
     results = await asyncio.gather(
@@ -67,6 +67,9 @@ async def find_recent_messages(guild, member, amount):
     )
     messages = [message for channel_messages in results for message in channel_messages]
     messages.sort(key=lambda message: message.created_at, reverse=True)
+    if since is not None:
+        in_window = sum(1 for message in messages if message.created_at >= since)
+        amount = max(amount, in_window)
     return messages[:amount]
 
 
