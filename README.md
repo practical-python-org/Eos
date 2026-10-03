@@ -185,11 +185,13 @@ Points are awarded automatically per word when a member sends a message, and ded
 
 ## Moderation
 
-### `/ban_member @target <reason>`
-- **Description**: Bans the target member. DMs them the reason before executing. Cannot ban bots or admins.
+### `/ban_member @target <reason> [messages_to_remove] [delete_last_minutes]`
+- **Description**: Bans the target member. DMs them the reason before executing. Cannot ban bots or admins. Optionally removes their recent messages, logging them to the mod log first.
 - **Arguments**:
   - `target`: The member to ban.
   - `reason`: The reason for the ban.
+  - `messages_to_remove`: Number of recent messages from this user to delete (optional, defaults to 0).
+  - `delete_last_minutes`: Delete everything this user sent in the last X minutes (optional, defaults to 0, max 10080 = 7 days). Only the newest 100 messages per channel are scanned for the mod log, so Discord may delete more than is logged.
 - **Permissions**: Moderator, master guild only, requires `ban_members` Discord permission.
 - **Output**: A public embedded message confirming who was banned and why.
 
