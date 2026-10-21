@@ -62,7 +62,7 @@ The functions that connect the bot to the API are at `src/bot/core/api_helper.py
 
 ---
 # Contributing
-See [CONTRIBUTING.md](CONTRIBUTING.md) for branch naming, the PR workflow, pre-commit setup, and local development with uv.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for branch naming, the PR workflow, pre-commit setup, and local development with uv (>=0.13.4).
 
 ---
 # Commands
