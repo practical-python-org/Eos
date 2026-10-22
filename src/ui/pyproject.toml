@@ -1,0 +1,9 @@
+[project]
+name = "eos-ui"
+version = "0.1.0"
+description = "Eos admin UI made with NiceGUI."
+requires-python = ">=3.12"
+dependencies = [
+    "nicegui==3.16.0",
+    "requests==2.34.2",
+]

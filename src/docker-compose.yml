@@ -21,6 +21,37 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  ui:
+    container_name: ui
+    build:
+      context: ../
+      dockerfile: src/Dockerfile-ui
+      args:
+        UI_PORT: ${UI_PORT}
+    env_file: .env
+    image: eos-ui:latest
+    init: true
+    networks:
+      - eos
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${UI_PORT_HOST:-8080}:${UI_PORT}"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:${UI_PORT}/hc_ui')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   api:
     container_name: api
     build:
