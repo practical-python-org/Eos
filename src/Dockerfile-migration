@@ -1,4 +1,4 @@
-FROM postgres:17.7-alpine3.21
+FROM postgres:17.12-alpine3.24
 
 COPY /db/migration-entrypoint.sh /usr/local/bin/
 COPY /db/migrations.sql /

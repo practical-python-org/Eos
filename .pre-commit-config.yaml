@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: check-merge-conflict
       - id: check-shebang-scripts-are-executable
@@ -10,7 +10,7 @@ repos:
       - id: check-toml
 
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.8.6
+    rev: 1.9.4
     hooks:
       - id: bandit
         # B101 (assert_used) is just how pytest asserts, so skip the test suite
@@ -18,7 +18,7 @@ repos:
         exclude: ^tests/
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.15
+    rev: v0.17.6
     hooks:
       - id: ruff-check
         args: [--fix]
