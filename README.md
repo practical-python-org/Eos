@@ -1,3 +1,7 @@
+> [!IMPORTANT]
+> This project has moved to Codeberg: https://codeberg.org/Practical-Python/Eos
+> This GitHub copy is archived and no longer updated.
+
 # Eos
 A Discord.py bot, utilizing docker.
 
