@@ -13,6 +13,17 @@ logger = logging.getLogger(__name__)
 DRAIN_SECONDS_PER_TOKEN = 60 * 20  # 1 token evaporated every 20 minutes
 WARN_THRESHOLD = 3
 QUARANTINE_THRESHOLD = 4
+EMBED_FIELD_LIMIT = 1024  # Discord rejects embed field values longer than this
+LOG_PREVIEW_LENGTH = 200
+
+
+def truncate(text, limit):
+    """
+    Shortens text to fit within limit, marking the cut with an ellipsis.
+    """
+    if len(text) <= limit:
+        return text
+    return text[: limit - 1] + "…"
 
 
 def embed_spammer_warn(channel1, channel2):
@@ -51,9 +62,15 @@ def embed_spammer_quarantine(spammer, message_to_report=None, file_url=None):
         timestamp=datetime.datetime.now(datetime.timezone.utc),
     )
     if message_to_report:
-        embed.add_field(name="Message:", value=message_to_report, inline=True)
+        embed.add_field(
+            name="Message:",
+            value=truncate(message_to_report, EMBED_FIELD_LIMIT),
+            inline=True,
+        )
     if file_url:
-        embed.add_field(name="Image:", value=file_url, inline=True)
+        embed.add_field(
+            name="Image:", value=truncate(file_url, EMBED_FIELD_LIMIT), inline=True
+        )
     return embed
 
 
@@ -195,7 +212,7 @@ class ModerationSpamMessages(BaseCog):
         if count >= (QUARANTINE_THRESHOLD - error_rate) and record["stage"] < 3:
             record["stage"] = 3
             logger.info(
-                f"{message.author.name} was quarantined (bucket >= {QUARANTINE_THRESHOLD}). Message: {message.content}"
+                f"{message.author.name} was quarantined (bucket >= {QUARANTINE_THRESHOLD}). Message: {message.content[:LOG_PREVIEW_LENGTH]}"
             )
             await self.quarantine_user(message, record)
 
@@ -203,7 +220,7 @@ class ModerationSpamMessages(BaseCog):
         elif count >= (WARN_THRESHOLD - error_rate) and record["stage"] < 2:
             record["stage"] = 2
             logger.info(
-                f"{message.author.name} was timed out (bucket >= {WARN_THRESHOLD}). Message: {message.content}"
+                f"{message.author.name} was timed out (bucket >= {WARN_THRESHOLD}). Message: {message.content[:LOG_PREVIEW_LENGTH]}"
             )
             await self.warn_user(message, record)
 
@@ -274,16 +291,33 @@ class ModerationSpamMessages(BaseCog):
             await message.author.remove_roles(verified_role)
             await message.author.add_roles(naughty_role)
 
-            await quarantine_channel.send(
-                embed=embed_spammer_quarantine(
-                    message.author, message.content, record["messages"][-1]["file_url"]
-                )
-            )
-
+            # Delete the spam before reporting, so a failed report can't leave it up.
             for msg in record["messages"]:
-                channel = await self.bot.fetch_channel(msg["channel_id"])
-                msg_to_delete = await channel.fetch_message(msg["message_id"])
-                await msg_to_delete.delete()
+                try:
+                    channel = await self.bot.fetch_channel(msg["channel_id"])
+                    msg_to_delete = await channel.fetch_message(msg["message_id"])
+                    await msg_to_delete.delete()
+                except discord.errors.HTTPException as e:
+                    # NotFound and Forbidden are subclasses; keep deleting the rest.
+                    logger.warning(
+                        "Could not delete spam message %s in channel %s: %s",
+                        msg["message_id"],
+                        msg["channel_id"],
+                        e,
+                    )
+
+            try:
+                await quarantine_channel.send(
+                    embed=embed_spammer_quarantine(
+                        message.author,
+                        message.content,
+                        record["messages"][-1]["file_url"],
+                    )
+                )
+            except discord.errors.HTTPException:
+                logger.exception(
+                    "Failed to post quarantine report for %s", message.author.name
+                )
 
         finally:
             self.records[author_id] = {

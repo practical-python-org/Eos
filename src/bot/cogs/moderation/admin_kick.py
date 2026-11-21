@@ -7,10 +7,13 @@ import logging
 
 import discord
 from discord import app_commands
-from discord.ext import commands
 
 from src.bot.cogs import BaseCog
-from src.bot.cogs._checks import is_master_guild, is_moderator
+from src.bot.cogs._checks import (
+    app_is_master_guild,
+    app_requires_permissions,
+    respond_to_app_command_error,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,10 +41,9 @@ class AdminKick(BaseCog):
 
         self.bot = bot
 
-    @is_moderator()
-    @is_master_guild()
     @app_commands.command()
-    @commands.has_permissions(kick_members=True)
+    @app_is_master_guild()
+    @app_requires_permissions(ban_members=True, kick_members=True)
     async def kick_member(
         self, interaction: discord.Interaction, target: discord.Member, reason: str
     ):
@@ -90,20 +92,8 @@ class AdminKick(BaseCog):
             await interaction.channel.send(embed=embed_info("You cant kick a bot."))
 
     @kick_member.error
-    async def kick_error(self, ctx, error):
-        if isinstance(error, commands.MemberNotFound):
-            await ctx.channel.send(
-                embed=embed_info(
-                    "User was not found, please check the name and use a mention."
-                )
-            )
-
-        if isinstance(error, commands.CheckFailure):
-            await ctx.channel.send(
-                embed=embed_info(
-                    f"{ctx.author.mention}, you dont have permission to kick users. The staff has been notified."
-                )
-            )
+    async def kick_error(self, interaction: discord.Interaction, error):
+        await respond_to_app_command_error(interaction, error, "kick users")
 
 
 async def setup(bot) -> None:

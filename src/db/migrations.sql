@@ -31,4 +31,11 @@ BEGIN;
         WHERE parameter_name='monthly_yapper'
     );
 
+    INSERT INTO parameters (parameter_name, parameter_value)
+    SELECT 'verification_enabled', '1'
+    WHERE NOT EXISTS (
+        SELECT * FROM parameters
+        WHERE parameter_name='verification_enabled'
+    );
+
 COMMIT;
