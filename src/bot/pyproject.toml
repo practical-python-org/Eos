@@ -2,7 +2,7 @@
 name = "eos-bot"
 version = "0.1.0"
 description = "Source files for the bot implementation."
-requires-python = ">=3.12"
+requires-python = ">=3.15"
 dependencies = [
     "aiohttp>=3.13.5",
     "discord-py>=2.7.1",
